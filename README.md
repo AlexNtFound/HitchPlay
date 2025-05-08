@@ -1,11 +1,16 @@
-# HitchPlay Rover project
+# About Hitch Play
 ![HitchPlay_logo.png](HitchPlay_logo.png)
 
-## Description
-HitchPlay Rover contains two parts:
-1. Rover ROS setup
-2. HitchPlay app on Android
+Hitch Play is an open-source project that implements a local Large-Language-Model (LLM) on smart phones to act as an AI voice assistant to help programming and controlling compatible rover vehicles. The user can issue rover navigation commands directly to the AI voice assistant, and the embedded LLM model will turn that into supported command code in Robot OS (ROS).
 
-Here is the demo video:
-[HitchPlay Rover demo video](https://drive.google.com/file/d/1GatD-wnXYO9-Zkg2-0efDdhuACMSJTps/view)
+The current implementation has been tested using a 3B Llama2 model, running on Qualcomm's optimized 8-Elite processor. The local LLM model, in turn, is qualitzed from Qualcomm's AI Hub.
+
+## Description
+Hitch Play contains two parts, which should be installed separately.
+1. C++ code on the rover with ROS2: A piece of ROS2 server code needs to be installed to receive API calls from the smartphone and then respond with the requested data. Currently we tested the code with a Jetson Nano board connected to a Leo Rover.
+   
+2. Hitch Play app on Android: We tested the app running Androind version 15 on Qualcomm's 8-Elite processor.
+
+Here is a short demo video:
+[Hitch Play Demo](https://drive.google.com/file/d/1GatD-wnXYO9-Zkg2-0efDdhuACMSJTps/view)
 
