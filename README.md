@@ -16,3 +16,8 @@ Hitch Play contains two parts, which should be installed separately.
 Here is a short demo video:
 [Hitch Play Demo](https://drive.google.com/file/d/1GatD-wnXYO9-Zkg2-0efDdhuACMSJTps/view)
 
+## License
+This project is licensed under GNU Affero General Public License (AGPL).
+
+This project includes third-party code in ursa directory licensed separately:
+- Qualcomm BSD-3-Clause License ([qualcomm-bsd3-clause.txt](third-party-licenses/qualcomm-bsd3-clause.txt))
