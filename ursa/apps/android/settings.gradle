@@ -1,0 +1,25 @@
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        google()
+        mavenCentral()
+    }
+}
+
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+        maven { url 'https://jitpack.io' }
+    }
+}
+
+/** Project Name **/
+rootProject.name = "Qualcomm AI Hub Android Sample Apps"
+
+/** Applications **/
+
+if (Boolean.valueOf(properties["includeChatApp"])) {
+    include ':ChatApp'
+}
