@@ -1,0 +1,3 @@
+[submodule "LeoRover-SLAM-ROS2/septentrio_gnss_driver"]
+	path = LeoRover-SLAM-ROS2/septentrio_gnss_driver
+	url = git@github.com:septentrio-gnss/septentrio_gnss_driver.git
