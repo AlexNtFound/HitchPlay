@@ -33,8 +33,8 @@ This app **requires Android 15** and **does not run on all Android 14 consumer d
 ### Step 1: Clone the Repository
 
 ```bash
-git clone https://github.com/xinranf/ursa.git
-cd ursa/apps/android/ChatApp
+git clone https://github.com/intelligentracing/HitchPlay.git
+cd HitchPlay/ursa/android/ChatApp
 ```
 All following paths assume you are in the ChatApp directory.
 
@@ -81,7 +81,7 @@ def qnnSDKLocalPath = "/opt/qcom/aistack/qairt/2.31.0.250130"
 
 ### Step 4. Update Build Configuration
 
-In `apps/android/build.gradle`:
+In `android/build.gradle`:
 ```
 plugins {
 id 'com.android.application' version '8.6.1'
@@ -95,7 +95,7 @@ Then in Android Studio:
 
 ## Building the APK
 
-1. Open the **`apps/android/`** folder (not `ChatApp`) in Android Studio
+1. Open the **`android/`** folder (not `ChatApp`) in Android Studio
 2. Run **Gradle Sync**
 3. Build `ChatApp` target:
    - **Build → Build Bundle(s) / APK(s) → Build APK(s)**

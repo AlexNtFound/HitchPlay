@@ -1,14 +1,14 @@
 <div align="center">
-  <img src="apps/android/ChatApp/assets/ursa_logo.jpg" alt="Ursa Logo" width="80" height="80" />
+  <img src="android/ChatApp/assets/ursa_logo.jpg" alt="Ursa Logo" width="80" height="80" />
 
   <h3>Ursa</h3>
   <p><strong>From Speech to Action: Voice Enabled Rover Control App using Large Language Model</strong></p>
 
   <table align="center">
     <tr>
-      <td><img src="apps/android/ChatApp/assets/eecs_logo.jpg" alt="Berkeley EECS Logo" width="160" /></td>
-      <td><img src="apps/android/ChatApp/assets/vive_logo.png" alt="Vive Center Logo" width="100" /></td>
-      <td><img src="apps/android/ChatApp/assets/qualcomm_logo.png" alt="Qualcomm Logo" width="140" /></td>
+      <td><img src="android/ChatApp/assets/eecs_logo.jpg" alt="Berkeley EECS Logo" width="160" /></td>
+      <td><img src="android/ChatApp/assets/vive_logo.png" alt="Vive Center Logo" width="100" /></td>
+      <td><img src="android/ChatApp/assets/qualcomm_logo.png" alt="Qualcomm Logo" width="140" /></td>
     </tr>
   </table>
 </div>
@@ -29,7 +29,7 @@
 
 ## About the Project
 
-Ursa is an Android application that converts natural language user commands into machine code instructions for robotic control, leveraging an on-device large language model (LLM). This project employs the **LlaMA 3.2-3B** model and integrates Qualcomm’s [Chat App Demo](https://github.com/quic/ai-hub-apps/tree/main/apps/android/ChatApp). Sponsored by **Qualcomm**.
+Ursa is an Android application that converts natural language user commands into machine code instructions for robotic control, leveraging an on-device large language model (LLM). This project employs the **LlaMA 3.2-3B** model and integrates Qualcomm’s [Chat App Demo](https://github.com/quic/ai-hub-apps/tree/main/android/ChatApp). Sponsored by **Qualcomm**.
 
 ## Demo
 
@@ -58,7 +58,7 @@ Ursa is an Android application that converts natural language user commands into
 
 ## Technical Stack
 
-<img src="apps/android/ChatApp/assets/tech-stack.png" alt="Tech Stack" />
+<img src="android/ChatApp/assets/tech-stack.png" alt="Tech Stack" />
 
 **Frontend**: Kotlin/Java (Android Studio)  
 **Backend**:  
@@ -71,7 +71,7 @@ Ursa is an Android application that converts natural language user commands into
 
 ## Getting Started with the App
 
-Navigate to the source directory: [apps/android/ChatApp](apps/android/ChatApp).
+Navigate to the source directory: [android/ChatApp](android/ChatApp).
 
 Follow the README there for build instructions, dependencies, and model setup.
 
