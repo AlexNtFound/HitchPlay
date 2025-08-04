@@ -1,66 +1,36 @@
-# LeoRover Setup and User Guide
-Kai Mohl | ka.mohl@berkeley.edu | kai.mohl36@gmail.com
+# Instruction to Set Up Leo Rover with Raspberry Pi5 (2025 version) as ROS2 server
+This document is based on an earlier version implemented with Raspberry Pi 4 together with a NVidia Jetson Nano in 2024. This early version can be found here: (https://github.com/Arthios09/LeoRover-SLAM-ROS2). Please note that the 2024 version is not compatible with the latest Leo Rover OS nor ROS2 Jazzy.
 
-## 1. Master Link List
+## 1. Preparation for the Raspberry Pi 5 and Leo Rover Hardware
 
-### Rover Use and Activation:
+First we need to examine the condition of the onboard Pi5 board and its attachment with the LeoCore controller board. Because we intent to run compute-intensive SLAM and Nav2 ROS nodes directly on Pi5, the condition of the Pi5 board is critical for the correct runtime execution:
 
-### Note: Please see the private doc for unlisted links, passwords, hyperlinks, and pictures
-[Private Document Link](https://docs.google.com/document/d/13QJeMEwr39OPiz0HjwH_UOHRjEEE9kCBeV8xATVtMiI/edit?usp=sharing)
+1. Please make sure that Pi5 needs to have active cooling solution onboard, such as
+   * Official Pi active cooling: https://www.raspberrypi.com/products/active-cooler/
 
-[LeoRover Documentation](https://docs.fictionlab.pl/leo-rover)
+2. Please make sure that the Sllidar is working properly. The Sllidar can be powered sufficiently by its single USB port connected with its adapter box. When it is powered, the adapter box should light up with a green indicator. Also the bandwidth switch should be selected to 256000 for a high rate suitable for the A2M12 model.
 
-[RPLidar Repo ROS2](https://index.ros.org/p/rplidar_ros/)
+3. Charging the batteries: The Leo Rover with a single Pi5 onboard can be powered by a single Leo battery pack. The battery with the button connects to the internal power cable and powers the Raspberry pi, wheel motors, controller, etc. 
 
-### Rover Background Knowledge and Important Concepts:
+When the battery's indicator is blinking green, it indicates that the charge is low and a recharge is needed. The charging is done by plugging in its dedicated Leo Battery Charger (which has higher Amp than regular chargers). Once plugged in, press the indicator button so that the Leo Battery Charger light will turn red, which indicates the charging has started. When the batter is sufficiently charged, the charger indicator will turn green again.
 
-[Jetpack](https://developer.nvidia.com/embedded/jetpack-sdk-60)
+** WARNING: Do not attempt to disassemble the Leo battery pack or the charging cable or connector. Leo Rover uses a special type of waterproof battery connection solution that is difficult to replace. The only disassembly point should be only the connection of the battery pack with the Rover or the charger, under normal conditions **
 
-[ROS2 Humble](https://docs.ros.org/en/humble/index.html)
+4. I/O Connection: It is recommended that the onboard Wi-Fi antenna connects to one of the Type-2 USB port; the onboard Sllidar connects to one of the Type-3 USB port. 
 
-[Nav2/SLAM](https://docs.nav2.org/concepts/index.html)
+Leo Rover has a built-in exposed USB connection port. This will really come in handy if we need to connect a keyboard and mouse for debugging. So we recommend to keep this exposed external USB port connect internally to the second Type-3 USB port. 
 
-## 2. Hardware Setup
+Finally, if connecting an external monitor is needed, we recommend connecting the mini-HDMI with its onboard HDMI0 port.
 
-### Hardware Scheme: 
-
-Along with the included RaspberryPi and LeoCore controller, the rover is equipped with a number of additional sensors and extra compute. The controller handles the basic wheel, motor, battery, and IMU monitoring and control. The RaspberryPi along with the more powerful [Nvidia Jetson Orin Nano](https://developer.nvidia.com/embedded/learn/get-started-jetson-orin-nano-devkit) run all ROS2 nodes, allowing for function anywhere, regardless of access to a computer running ROS or internet access. The two computers are connected via an ethernet cable, permitting the transmission of ROS topic data. The RPLiDAR A2M12 and [ZED stereo camera](https://www.stereolabs.com/docs) allow for accurate obstacle detection, navigation, and mapping. The Zed camera is our primary sensor for the detection of Aruco tags, objects, and people, while the 2D LiDAR provides information exclusively for SLAM.
-
-### Attaching and Charging Batteries:
-
-Our LeoRover uses 2 batteries per rover as opposed to the base version’s single battery (with 4 batteries, 2 per rover, existing in Cory 337D). The battery with the button connects to the internal power cable and powers the Raspberry pi, wheel motors, controller, etc. The other battery quarter powers the Nvidia Jetson.
-Use an hex key to remove the 3 screws connecting the battery quarters and the rover body. The Jetson battery may be plugged into its wall socket charger, with a red light indicating charging and a green light indicating full battery. The main battery may be plugged into its wall socket charger. Once plugged in, press the button on the side panel. Once pressed, the battery will begin charging, with a red light indicating charging and a green light indicating full battery
-
-### Removing Adding and Changing Hardware Attachments:
-
-A full set of hex keys are recommended for deconstructing and reconstructing rover components. For the Nvidia Jetson mounts, holding plates, and other 3D printed components please see the CAD files in the main repo. For base LeoRover components, please see the Fictionlab website. 
-
-### Raise3D Printer:
-
-Cory337D contains a Raise 3D Pro printer. The slicing software can be found online on the Raise3D website. Please follow the instructions to properly slice your STL and print using this printer. Although there is a Dremel printer, I have no personal experience using it and recommend using the Raise3D Pro. 
-
-## 3. Software Setup and Development
+## 2. Software Setup and Development
 
 ### Software Scheme:
 
-Both the Raspberry Pi and Nvidia Jetson run on Ubuntu 22.04 and ROS2 Humble. Through their shared network (via ethernet cable) ros topic data, nodes, and services are shared between them. Please regularly run sudo apt update/sudo apt upgrade to insure all packages are up to date.
-The rover’s navigation stack is centered around two open source libraries, [Nav2](https://docs.nav2.org/tutorials/index.html) and [SLAM toolbox](https://github.com/SteveMacenski/slam_toolbox). Reading through the documentation of these libraries is highly recommended. The config/param files for these ros packages exist in the repo. Please see documentation for modification instructions, parameter definitions, and syntax. 
-The rover’s sensor fusion uses an [EKF](https://en.wikipedia.org/wiki/Extended_Kalman_filter) to combine odometry information collected by the wheel encoders, IMUs, LiDAR, and Zed Camera. Please see the EKF config files and source code in the Github repository for modifications.
-
-The rover’s connection to external devices is permitted through its onboard wifi chip. Although the onboard wifi does not have to be connected to another wifi network/the internet, connection to the rover’s wifi is necessary to ssh into either computer and transmit information via the api server/websockets. Two methods of communication exist for accessing ROS data and functions on the rover. The api server is used for running ROS2 commands on the rover from a remote device that cannot ssh and/or is not using Ubuntu 22.04. The rosbridge suite websocket server is used to monitor topic data from a remote device that cannot ssh and/or is not using Ubuntu 22.04.
+The 2025 version of Leo Rover runs on Raspberry Pi5 with Ubuntu 24.04 and ROS2 Jazzy. The rover’s connection to external devices is permitted through its onboard wifi chip. Although the onboard wifi does not have to be connected to another wifi network/the internet, connection to the rover’s wifi is necessary to ssh into either computer and transmit information via the api server/websockets.
 
 ### Setting Up a New Rover or Computer:
 
 To flash the base onboard RaspberryPi please follow the [LeoRover Ros2 (experimental) guide here](https://docs.fictionlab.pl/leo-rover/advanced-guides/ros-2-support). A microSD, microSD-SD adapter, and a computer are required. 
-
-To flash the Nvidia Jetson Orin Nano please follow the [Jetpack 6.0 guide here](https://developer.nvidia.com/embedded/jetpack-sdk-60). To flash Jetpack 6.0 (Ubuntu 22.04), a microSD, microSD-SD adapter, and a computer are required. It is recommended to plug the Jetson into a monitor to more easily navigate the setup menus and BIOS. 
-Once both computers have been flashed, please proceed to the [ROS2 Humble guide](https://docs.ros.org/en/humble/index.html) to install ROS, rosdep, and necessary dependencies.
-
-The Zed cameras require the installation of CUDA (comes with Jetpack 6.0), and the [Zed SDK](https://www.stereolabs.com/developers/release). Please check the cuda version using nvcc and confirm that the base requirements are satisfied for the latest version of the Zed SDK. Once this is complete, you may proceed to pulling packages from the LeoRover repository and installing Nav2/Robot Localization or any new packages.
-
-When installing Nav2, SLAM toolbox, and [Robot Localization](https://github.com/cra-ros-pkg/robot_localization/tree/humble-devel) there are 2 options, installing debian packages, or building from source. Installing the prebuilt packages provides easy use (while only having to source /opt/ros/humble/setup.bash) and maintains the ability to specify custom param files for quick modifications. Building from source allows greater control and potential modification of the provided packages however can increase your risk of running into ROS2 related errors and issues (out of date dependencies/versions, conflicts with other packages in the directory, etc.). The two functioning rovers utilize Nav2/SLAM toolbox (both on the Nav2 guide) installed through debian packages and Robot Localization built from source (due to customization of the ekf node).  
-
-Finally, the communication between the rover and phone must be set up. The rover uses two methods of communication, [an API server](https://gitlab.com/roar-gokart/api-server/-/tree/kai/server?ref_type=heads) linked on the github to transmit and execute commands from the phone to the rover, and [rosbridge suite websockets](https://github.com/RobotWebTools/rosbridge_suite/blob/humble/README.md) for direct topic publication and monitoring from the phone. The API server may be pulled and ran (python main.py) with or without a virtual environment. Rosbridge suite may be installed via the prebuilt ros2 humble packages and ran with the command “ros2 launch rosbridge_server rosbridge_websocket_launch.xml”. The ports to access these will be displayed when activated.
 
 
 ### Rover Activation and Use:

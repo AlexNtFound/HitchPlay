@@ -21,3 +21,8 @@ This project is licensed under GNU Affero General Public License (AGPL).
 
 This project includes third-party code in ursa directory licensed separately:
 - Qualcomm BSD-3-Clause License ([qualcomm-bsd3-clause.txt](third-party-licenses/qualcomm-bsd3-clause.txt))
+
+## Contributors
+* Rover ROS2 Server: Kai Mohl, Franco Huang, Tianlun Zhang, Alex Nan, Michael Wu, and Dr. Allen Y. Yang
+
+(c) Copyright, 2025.
