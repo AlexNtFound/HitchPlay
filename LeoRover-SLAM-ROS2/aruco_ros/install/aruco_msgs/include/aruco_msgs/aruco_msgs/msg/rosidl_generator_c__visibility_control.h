@@ -1,1 +1,0 @@
-/home/pi/LeoRover-SLAM-ROS2/aruco_ros/build/aruco_msgs/rosidl_generator_c/aruco_msgs/msg/rosidl_generator_c__visibility_control.h
