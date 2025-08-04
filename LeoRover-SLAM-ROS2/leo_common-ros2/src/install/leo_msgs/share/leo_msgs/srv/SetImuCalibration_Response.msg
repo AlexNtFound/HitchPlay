@@ -1,1 +1,0 @@
-/home/situjet/Desktop/leo_common-ros2/src/build/leo_msgs/rosidl_cmake/srv/SetImuCalibration_Response.msg
