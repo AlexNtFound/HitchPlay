@@ -10,6 +10,7 @@ find_package(ament_cmake REQUIRED)
 # uncomment the following section in order to fill in
 # further dependencies manually.
 find_package(nav2_util REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
 
 add_executable(drive_publisher src/drive_publisher.cpp)
 ament_target_dependencies(drive_publisher rclcpp geometry_msgs nav2_util)
