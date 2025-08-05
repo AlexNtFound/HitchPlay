@@ -253,16 +253,16 @@ fun VideoStreamingSetting(
                 }
             }
 
-            Spacer(modifier = Modifier.width(16.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center
-            ) {
-                GradientButton(
-                    text = "Return to Base",
-                    onClick = { viewModel.returnToBase() }
-                )
-            }
+//            Spacer(modifier = Modifier.width(16.dp))
+//            Row(
+//                modifier = Modifier.fillMaxWidth(),
+//                horizontalArrangement = Arrangement.Center
+//            ) {
+//                GradientButton(
+//                    text = "Return to Base",
+//                    onClick = { viewModel.returnToBase() }
+//                )
+//            }
 
 
         }

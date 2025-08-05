@@ -31,7 +31,7 @@ class VideoCamSettingsViewModel(application: Application) : AndroidViewModel(app
     private var base_webSocket: WebSocket? = null // Variable to remember the WebSocket
     private val control_client = OkHttpClient()
     private val base_client = OkHttpClient()
-    private val WEBSOCKET_IPADDRESS = "10.0.0.120"
+    private val WEBSOCKET_IPADDRESS = "10.0.0.1"
     private val WEBSOCKET_PORT = "9090"
 
     // Function to create the WebSocket
@@ -110,7 +110,7 @@ class VideoCamSettingsViewModel(application: Application) : AndroidViewModel(app
         val controlMessage = """
         {
             "op": "publish",
-            "topic": "/cmd_vel_nav",
+            "topic": "/cmd_vel",
             "msg": {
                 "linear": {
                     "x": $x,

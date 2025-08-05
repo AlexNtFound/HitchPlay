@@ -22,7 +22,7 @@ fun TelemetryScreen(
     viewModel: TelemetryViewModel = viewModel(),
     onBackPressed: () -> Unit
 ) {
-    var ipAddress by remember { mutableStateOf("10.0.0.120") }
+    var ipAddress by remember { mutableStateOf("10.0.0.1") }
     var port by remember {
         mutableStateOf("8000")
     }

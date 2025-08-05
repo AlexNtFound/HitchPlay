@@ -6,6 +6,10 @@ import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.chatgptlite.wanted.helpers.CommandRequest
+import com.chatgptlite.wanted.helpers.PingResponse
+import com.chatgptlite.wanted.helpers.RoverAPIService
+import com.chatgptlite.wanted.helpers.StatusResponse
 import com.chatgptlite.wanted.ui.settings.rover.RoverConfig
 import com.chatgptlite.wanted.helpers.sendMessage
 import dagger.hilt.android.internal.Contexts.getApplication
@@ -16,18 +20,25 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import okhttp3.WebSocket
+import retrofit2.Response
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+import retrofit2.http.Body
+import retrofit2.http.GET
+import retrofit2.http.POST
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
+import java.util.concurrent.TimeUnit
 
 class TerminalViewModel(application: Application) : AndroidViewModel(application) {
     // Placeholder for any future logic or state for the Advance screen
-    private val DEFAULT_IPADDRESS = "10.0.0.120"
+    private val DEFAULT_IPADDRESS = "10.0.0.1"
     private val DEFAULT_PORT = "8000"
     private val CONCAT = "ros2 topic echo "
 
     private val webSockets = mutableListOf<WebSocket>()
     private val client = OkHttpClient()
-    private val WEBSOCKET_IPADDRESS = "10.0.0.120"
+    private val WEBSOCKET_IPADDRESS = "10.0.0.1"
     private val WEBSOCKET_PORT = "9090"
 
     private val _pingResult = MutableStateFlow<String?>(null)
@@ -80,23 +91,25 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun sendMessage(textToSend: String, ipAddress: String? = null, onSuccess: (() -> Unit)? = null, onFail: ((error: String) -> Unit)? = null) {
-        val newIpAddress = if (ipAddress == null) {
-            val sharedPreferences = getApplication<Application>().getSharedPreferences("RoverSettings", Context.MODE_PRIVATE)
-            sharedPreferences.getString("ipAddress", "") ?: return
-        } else ipAddress
+//        val newIpAddress = if (ipAddress == null) {
+//            val sharedPreferences = getApplication<Application>().getSharedPreferences("RoverSettings", Context.MODE_PRIVATE)
+//            sharedPreferences.getString("ipAddress", "") ?: return
+//        } else ipAddress
         viewModelScope.launch {
             try {
                 Log.d("Terminal", "launching sendMessage function")
-                val (ip, port) = newIpAddress.split(":")
+//                val (ip, port) = newIpAddress.split(":")
                 // url encode the textToSend
                 val encodedText = URLEncoder.encode(textToSend, StandardCharsets.UTF_8.toString())
-                val response = com.chatgptlite.wanted.helpers.sendMessage(ip, port, encodedText)
+                val response = sendMessage(DEFAULT_IPADDRESS, DEFAULT_PORT, encodedText)
 
                 if (response.isSuccessful) {
                     Log.d("Terminal", "sendMessage successful")
                     val statusResponse = response.body()
-                    _messageResult.value = "Message sent successfully. Server status: ${statusResponse?.status}. Request: ${statusResponse?.request}"
+//                    _messageResult.value = "Message sent successfully. Server status: ${statusResponse?.status}. Request: ${statusResponse?.request}"
+                    _messageResult.value = statusResponse?.status
                     onSuccess?.invoke()
+
                 } else {
                     Log.d("Terminal", "sendMessage failed")
                     val msg = "Error sending message: ${response.message()}"

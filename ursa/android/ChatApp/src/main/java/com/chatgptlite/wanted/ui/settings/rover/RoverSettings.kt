@@ -44,7 +44,7 @@ fun SettingsScreen(
 
     val roverState by viewModel.roverState.collectAsState()
 
-    var ipAddress by remember { mutableStateOf("10.0.0.120") }
+    var ipAddress by remember { mutableStateOf("10.0.0.1") }
     var port by remember { mutableStateOf("8000") }
     var textToSend by remember { mutableStateOf("ros2 topic list") }
 
