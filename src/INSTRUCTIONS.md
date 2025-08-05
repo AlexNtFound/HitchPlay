@@ -118,3 +118,34 @@ sudo apt install ros-jazzy-slam-toolbox ros-jazzy-pointcloud-to-laserscan
 sudo apt install ros-jazzy-nav2-map-server
 sudo apt install ros-jazzy-nav2-lifecycle-manager
 ```
+
+## 3. Build the Leo Rover SLAM server and API server
+
+
+1. To set up to workspace, first clone the Hitch Play project, then move the *src* folder to the *~\leo_ws* folder
+   
+```bash
+mkdir ~/projects
+cd ~/projects
+git clone https://github.com/intelligentracing/HitchPlay
+
+mkdir ~/leo_ws
+cd HitchPlay
+mv src ~/leo_ws
+```
+
+2. Before we can build from source, need to install some ROS2 Jazzy packages
+```bash
+sudo apt update
+sudo apt install ros-jazzy-tf2-geometry-msgs ros-jazzy-tf2 ros-jazzy-tf2-ros ros-jazzy-tf2-sensor-msgs
+cd ~/leo_ws
+rosdep update
+rosdep install --from-paths src -y --ignore-src
+colcon build --symlink-install
+```
+
+3. Install the ROS2 API server
+
+
+## 4. Launch the ROS nodes and API server
+
