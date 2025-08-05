@@ -146,6 +146,89 @@ colcon build --symlink-install
 
 3. Install the ROS2 API server
 
+We first install an open-source API server
+
+```bash
+cd ~/projects
+git clone -b alex_cmd https://gitlab.com/roar-gokart/api-server.git
+cd api-server/
+sudo apt install python3-fastapi
+python3 main.py
+```
+
+Next, because Leo OS launches a default rosbridge_websocket, we need to remove it from startup. Specifically, edit:
+```bash
+sudo nano /opt/ros/jazzy/share/leo_bringup/launch/leo_bringup.launch.xml
+```
+
+Comment out the following lines
+```script
+#<!--
+#<node name="rosbridge_server"
+#      pkg="rosbridge_server"
+#      …
+#      exec="rosbridge_websocket">
+#</node>
+#-->
+```
+
+The change will take effect after reboot
 
 ## 4. Launch the ROS nodes and API server
 
+The entire startup sequence has been coded conveniently in a script file *start-all.sh* inside *HitchPlay/src*. 
+
+The following is a more detailed breakdown of all the services:
+
+1. Start Leo system
+
+```bash
+source /opt/ros/jazzy/setup.bash
+ros2 run leo_bringup leo_system
+```
+   
+2. Start Sllidar
+
+```bash
+source ~/ws_lidar/install/setup.bash
+ros2 launch sllidar_ros2 view_sllidar_a2m12_launch.py
+```
+
+3. Add tf transform
+   
+```bash
+source /opt/ros/jazzy/setup.bash
+ros2 run tf2_ros static_transform_publisher --x 0.1 --y 0 --z 0.02 --yaw 3.14159 --pitch 0 --roll 0 --frame-id base_link --child-frame-id laser
+```
+
+4. Start RVIZ
+   
+```bash
+source install/setup.bash
+ros2 launch leo_viz rviz.launch.xml
+```
+
+5. Start Nav2 and SLAM_Toolbox
+   
+```bash
+source /opt/ros/jazzy/setup.bash
+ros2 launch slam_toolbox online_async_launch.py
+```
+
+```bash
+source /opt/ros/jazzy/setup.bash
+ros2 launch robot_localization ekf.launch.py params_file:=$HOME/leo_ws/src/LeoRover-SLAM-ROS2/ekf.yaml
+```
+
+```bash
+source /opt/ros/jazzy/setup.bash
+source ~/leo_ws/install/setup.bash
+ros2 launch nav2_bringup navigation_launch.py params_file:=$HOME/leo_ws/src/LeoRover-SLAM-ROS2/nav2_simple.yaml
+```
+
+6. Start the customized websocket
+
+```bash
+source /opt/ros/jazzy/setup.bash
+ros2 launch rosbridge_server rosbridge_websocket_launch.xml
+```
