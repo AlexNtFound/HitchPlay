@@ -1,1 +1,0 @@
-ament_cmake_symlink_install_targets("TARGET_FILES" "/home/pi/LeoRover-SLAM-ROS2/aruco_ros/build/aruco_ros/marker_publisher" "/home/pi/LeoRover-SLAM-ROS2/aruco_ros/build/aruco_ros/single" "/home/pi/LeoRover-SLAM-ROS2/aruco_ros/build/aruco_ros/double" "TARGETS" "marker_publisher" "single" "double" "DESTINATION" "lib/aruco_ros")

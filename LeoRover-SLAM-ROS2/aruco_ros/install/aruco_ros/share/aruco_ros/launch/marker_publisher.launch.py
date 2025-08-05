@@ -1,1 +1,0 @@
-/home/pi/LeoRover-SLAM-ROS2/aruco_ros/aruco_ros/launch/marker_publisher.launch.py
