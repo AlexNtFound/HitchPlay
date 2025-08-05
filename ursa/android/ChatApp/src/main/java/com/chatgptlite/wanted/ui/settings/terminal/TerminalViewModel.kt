@@ -100,8 +100,8 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
                 Log.d("Terminal", "launching sendMessage function")
 //                val (ip, port) = newIpAddress.split(":")
                 // url encode the textToSend
-                val encodedText = URLEncoder.encode(textToSend, StandardCharsets.UTF_8.toString())
-                val response = sendMessage(DEFAULT_IPADDRESS, DEFAULT_PORT, encodedText)
+//                val encodedText = URLEncoder.encode(textToSend, StandardCharsets.UTF_8.toString())
+                val response = sendMessage(DEFAULT_IPADDRESS, DEFAULT_PORT, textToSend)
 
                 if (response.isSuccessful) {
                     Log.d("Terminal", "sendMessage successful")
