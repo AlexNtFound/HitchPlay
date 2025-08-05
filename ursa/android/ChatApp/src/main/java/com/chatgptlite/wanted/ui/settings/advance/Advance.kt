@@ -77,42 +77,42 @@ fun AdvanceScreen(
 
 
             // LLM Setting Box
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onLLMSettingClick() }
-                    .border(
-                        1.dp,
-                        MaterialTheme.colorScheme.primary,
-                        RoundedCornerShape(8.dp)
-                    )
-                    .padding(16.dp)
-            ) {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        text = "LLM Setting",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Text(
-                        text = "System prompt template",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
-                    Text(
-                        text = "User prompt template",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
-                    Text(
-                        text = "Voice chat sensitivity",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
-                }
-            }
+//            Box(
+//                modifier = Modifier
+//                    .fillMaxWidth()
+//                    .clickable { onLLMSettingClick() }
+//                    .border(
+//                        1.dp,
+//                        MaterialTheme.colorScheme.primary,
+//                        RoundedCornerShape(8.dp)
+//                    )
+//                    .padding(16.dp)
+//            ) {
+//                Column(
+//                    verticalArrangement = Arrangement.spacedBy(8.dp)
+//                ) {
+//                    Text(
+//                        text = "LLM Setting",
+//                        style = MaterialTheme.typography.bodyLarge,
+//                        color = MaterialTheme.colorScheme.primary
+//                    )
+//                    Text(
+//                        text = "System prompt template",
+//                        style = MaterialTheme.typography.bodyMedium,
+//                        color = MaterialTheme.colorScheme.onBackground
+//                    )
+//                    Text(
+//                        text = "User prompt template",
+//                        style = MaterialTheme.typography.bodyMedium,
+//                        color = MaterialTheme.colorScheme.onBackground
+//                    )
+//                    Text(
+//                        text = "Voice chat sensitivity",
+//                        style = MaterialTheme.typography.bodyMedium,
+//                        color = MaterialTheme.colorScheme.onBackground
+//                    )
+//                }
+//            }
         }
     }
 }

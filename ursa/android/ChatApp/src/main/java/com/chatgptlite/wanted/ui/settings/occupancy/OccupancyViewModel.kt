@@ -18,7 +18,7 @@ import androidx.compose.runtime.mutableStateOf
 
 class OccupancyViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val WEBSOCKET_IPADDRESS = "10.0.0.120"
+    private val WEBSOCKET_IPADDRESS = "10.0.0.1"
     private val WEBSOCKET_PORT = "9090"
     var occupancyBitmap = mutableStateOf<Bitmap?>(null)
 

@@ -32,11 +32,8 @@ fun TerminalScreen(
     val messageResult by viewModel.messageResult.collectAsState()
     val terminalHistory = remember {
         mutableStateListOf(
-            "Ursa Rover Control Terminal - v1.3.2",
-            "Connected to Rover: URSA-01",
-            "System Status: ONLINE",
-            "Last Sync: 2025-02-04 14:23 UTC",
-            "Type 'help' for a list of commands.\n"
+//            "Type 'help' for a list of commands.\n"
+            ""
         )
     }
 
@@ -44,7 +41,7 @@ fun TerminalScreen(
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusRequester = remember { FocusRequester() }
 
-    // Append message result to terminal when it changes
+//     Append message result to terminal when it changes
     LaunchedEffect(messageResult) {
         messageResult?.let {
             terminalHistory.add(it)

@@ -131,7 +131,7 @@ class MainActivity : ComponentActivity() {
                             }
                         }
 
-                        val addr = "10.0.0.120"
+                        val addr = "10.0.0.1"
                         val port = "8000"
 //                        processWhisperCommand(it, addr, port)
                     }
@@ -547,7 +547,7 @@ class MainActivity : ComponentActivity() {
                                     genieResponse = genieResponse,
                                     animationFrames = animationFrames,
                                     onConfirm = {
-                                        val addr = "10.0.0.120"
+                                        val addr = "10.0.0.1"
                                         val port = "8000"
                                         sendGenieCommandToRover(genieResponse.value, addr, port)
                                         text.value = ""

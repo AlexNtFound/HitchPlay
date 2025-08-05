@@ -37,11 +37,11 @@ class RoverSettingsViewModel(application: Application) : AndroidViewModel(applic
     var xCoordinate = MutableStateFlow<String?>("0")
     var yCoordinate = MutableStateFlow<String?>("0")
     var zCoordinate = MutableStateFlow<String?>("0")
-    var linear_velocity = MutableStateFlow<String?>("-1000")
-    var angular_velocity = MutableStateFlow<String?>("-1000")
+    var linear_velocity = MutableStateFlow<String?>("0")
+    var angular_velocity = MutableStateFlow<String?>("0")
     var heading = MutableStateFlow<String?>("0")
     var battery = MutableStateFlow<Int>(0)
-    private val DEFAULT_IPADDRESS = "10.0.0.120"
+    private val DEFAULT_IPADDRESS = "10.0.0.1"
     private val DEFAULT_PORT = "8000"
     private val CONCAT = "ros2 topic echo "
 
@@ -53,7 +53,7 @@ class RoverSettingsViewModel(application: Application) : AndroidViewModel(applic
 
     private val webSockets = mutableListOf<WebSocket>()
     private val client = OkHttpClient()
-    private val WEBSOCKET_IPADDRESS = "10.0.0.120"
+    private val WEBSOCKET_IPADDRESS = "10.0.0.1"
     private val WEBSOCKET_PORT = "9090"
 
     private val _pingResult = MutableStateFlow<String?>(null)

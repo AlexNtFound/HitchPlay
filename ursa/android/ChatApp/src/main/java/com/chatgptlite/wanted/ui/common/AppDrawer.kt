@@ -160,7 +160,7 @@ private fun DrawerHeader(
                 .weight(1f), verticalAlignment = CenterVertically
         ) {
             Image(
-                painter = painterResource(id = R.drawable.ursa_logo), //rememberAsyncImagePainter(urlToImageAppIcon),
+                painter = painterResource(id = R.drawable.hitchplay_logo), //rememberAsyncImagePainter(urlToImageAppIcon),
                 modifier = paddingSizeModifier.then(Modifier.clip(RoundedCornerShape(6.dp))),
                 contentScale = ContentScale.Crop,
                 contentDescription = null
