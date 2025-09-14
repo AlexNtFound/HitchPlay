@@ -253,7 +253,7 @@ ros2 launch robot_localization ekf.launch.py params_file:=$HOME/leo_ws/src/LeoRo
 ```bash
 source /opt/ros/jazzy/setup.bash
 source ~/leo_ws/install/setup.bash
-ros2 launch nav2_bringup navigation_launch.py params_file:=$HOME/leo_ws/src/LeoRover-SLAM-ROS2/nav2_simple.yaml
+ros2 launch nav2_bringup navigation_launch.py params_file:=$HOME/leo_ws/src/LeoRover-SLAM-ROS2/nav2_simple.yaml slam:=true
 ```
 
 6. Start the customized websocket
