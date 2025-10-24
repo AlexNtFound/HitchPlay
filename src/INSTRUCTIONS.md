@@ -174,13 +174,13 @@ sudo nano /opt/ros/jazzy/share/leo_bringup/launch/leo_bringup.launch.xml
 
 Comment out the following lines
 ```script
-#<!--
-#<node name="rosbridge_server"
-#      pkg="rosbridge_server"
-#      …
-#      exec="rosbridge_websocket">
-#</node>
-#-->
+<!--
+<node name="rosbridge_server"
+      pkg="rosbridge_server"
+      …
+      exec="rosbridge_websocket">
+</node>
+-->
 ```
 
 The change will take effect after reboot
@@ -242,7 +242,7 @@ ros2 launch leo_viz rviz.launch.xml
    
 ```bash
 source /opt/ros/jazzy/setup.bash
-ros2 launch slam_toolbox online_async_launch.py
+ros2 launch slam_toolbox online_async_launch.py use_sim_time:=false
 ```
 
 ```bash
