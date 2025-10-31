@@ -3,6 +3,7 @@
 Xbox Controller Return to Base for Leo Rover
 - RB: Return to home (default: map origin 0,0)
 - Left Stick Click: Set current location as home
+- A Button: Cancel/Stop active navigation
 - Left Stick Y-axis: Linear motion (forward/backward) only
 - Right Stick X-axis: Angular motion (rotation) only
 """
@@ -33,6 +34,7 @@ class XboxReturnToBase(Node):
         # Button state tracking (to detect press, not hold)
         self.rb_pressed = False
         self.left_stick_click_pressed = False
+        self.a_pressed = False
         
         # Home position (default: map origin)
         self.home_x = 0.0
@@ -47,6 +49,7 @@ class XboxReturnToBase(Node):
         self.get_logger().info('  LB (hold): Enable movement (deadman switch)')
         self.get_logger().info('  RB (press): Return to home')
         self.get_logger().info('  Left Stick Click: Set current location as home')
+        self.get_logger().info('  A Button: Cancel/Stop navigation')
         self.get_logger().info(f'  Current home: ({self.home_x:.2f}, {self.home_y:.2f})')
         self.get_logger().info('=' * 60)
     
@@ -83,6 +86,7 @@ class XboxReturnToBase(Node):
         # Button indices for Xbox controller
         rb_button = msg.buttons[5] if len(msg.buttons) > 5 else 0  # RB
         left_stick_click = msg.buttons[9] if len(msg.buttons) > 9 else 0  # Left stick click
+        a_button = msg.buttons[0] if len(msg.buttons) > 0 else 0  # A button
         
         # Left Stick Click: Set current location as home
         if left_stick_click == 1 and not self.left_stick_click_pressed:
@@ -97,6 +101,13 @@ class XboxReturnToBase(Node):
             self.rb_pressed = True
         elif rb_button == 0:
             self.rb_pressed = False
+        
+        # A Button: Cancel/Stop navigation
+        if a_button == 1 and not self.a_pressed:
+            self.cancel_navigation()
+            self.a_pressed = True
+        elif a_button == 0:
+            self.a_pressed = False
     
     def set_home_to_current(self):
         """Set home position to current robot location"""
@@ -145,6 +156,28 @@ class XboxReturnToBase(Node):
         self.get_logger().info(f'  Y: {self.home_y:.2f} m')
         self.get_logger().info(f'  Yaw: {math.degrees(self.home_yaw):.1f}°')
         self.get_logger().info('=' * 60)
+    
+    def cancel_navigation(self):
+        """Cancel active navigation by sending current position as goal"""
+        x, y, yaw = self.get_current_position()
+        
+        if x is None:
+            self.get_logger().warn('Cannot cancel - unable to get position')
+            return
+        
+        # Send current position as the goal (effectively "stay here")
+        goal = PoseStamped()
+        goal.header.frame_id = 'map'
+        goal.header.stamp = self.get_clock().now().to_msg()
+        goal.pose.position.x = x
+        goal.pose.position.y = y
+        goal.pose.position.z = 0.0
+        goal.pose.orientation.z = math.sin(yaw / 2.0)
+        goal.pose.orientation.w = math.cos(yaw / 2.0)
+        
+        self.goal_pub.publish(goal)
+        
+        self.get_logger().info('🛑 Navigation CANCELLED - Robot will stop at current location')
 
 def main(args=None):
     rclpy.init(args=args)
@@ -160,3 +193,22 @@ def main(args=None):
 
 if __name__ == '__main__':
     main()
+```
+
+## How It Works
+
+When you press **A button**, the script:
+1. Gets the robot's current position
+2. Publishes that position as the new goal
+3. Nav2 receives the goal "go to where you already are"
+4. Navigation effectively stops
+
+## Updated Controls
+```
+Xbox Controller:
+- LB (hold): Enable manual driving
+- RB: Return to home
+- A: Cancel navigation / Emergency stop
+- Left Stick Click: Set current location as home
+- Left Stick Y: Forward/Backward
+- Right Stick X: Rotate
