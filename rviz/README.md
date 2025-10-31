@@ -179,6 +179,14 @@ Hold LB and move the sticks - you should see velocity messages and Leo should re
 ### Quick Start - Full PC User Interface
 
 **On Leo Rover:**
+
+> **💡 Quick Deploy Tip:** If you understand what the script does, you can use the automated startup script instead of running the commands below manually:
+> ```bash
+> cd ~/leo_ws/src/LeoRover-SLAM-ROS2
+> ./src/start_all.sh
+> ```
+> This will launch all necessary nodes in separate terminal windows. Otherwise, follow the manual steps below:
+
 ```bash
 # Terminal 1: Start Leo Rover base system
 source /opt/ros/jazzy/setup.bash
