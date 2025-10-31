@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# start-all.sh - Launch all Leo Rover ROS2 navigation components
+# start_all.sh - Launch all Leo Rover ROS2 navigation components
 set -euo pipefail
 
 # Store PIDs of all launched processes
