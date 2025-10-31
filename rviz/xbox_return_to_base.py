@@ -193,22 +193,3 @@ def main(args=None):
 
 if __name__ == '__main__':
     main()
-```
-
-## How It Works
-
-When you press **A button**, the script:
-1. Gets the robot's current position
-2. Publishes that position as the new goal
-3. Nav2 receives the goal "go to where you already are"
-4. Navigation effectively stops
-
-## Updated Controls
-```
-Xbox Controller:
-- LB (hold): Enable manual driving
-- RB: Return to home
-- A: Cancel navigation / Emergency stop
-- Left Stick Click: Set current location as home
-- Left Stick Y: Forward/Backward
-- Right Stick X: Rotate
