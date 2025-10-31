@@ -4,6 +4,7 @@ Xbox Controller Return to Base for Leo Rover
 - RB: Return to home (default: map origin 0,0)
 - Left Stick Click: Set current location as home
 - A Button: Cancel/Stop active navigation
+- B Button: Reset home to default (map origin)
 - Left Stick Y-axis: Linear motion (forward/backward) only
 - Right Stick X-axis: Angular motion (rotation) only
 """
@@ -35,6 +36,7 @@ class XboxReturnToBase(Node):
         self.rb_pressed = False
         self.left_stick_click_pressed = False
         self.a_pressed = False
+        self.b_pressed = False
         
         # Home position (default: map origin)
         self.home_x = 0.0
@@ -50,6 +52,7 @@ class XboxReturnToBase(Node):
         self.get_logger().info('  RB (press): Return to home')
         self.get_logger().info('  Left Stick Click: Set current location as home')
         self.get_logger().info('  A Button: Cancel/Stop navigation')
+        self.get_logger().info('  B Button: Reset home to default (map origin)')
         self.get_logger().info(f'  Current home: ({self.home_x:.2f}, {self.home_y:.2f})')
         self.get_logger().info('=' * 60)
     
@@ -87,6 +90,7 @@ class XboxReturnToBase(Node):
         rb_button = msg.buttons[5] if len(msg.buttons) > 5 else 0  # RB
         left_stick_click = msg.buttons[9] if len(msg.buttons) > 9 else 0  # Left stick click
         a_button = msg.buttons[0] if len(msg.buttons) > 0 else 0  # A button
+        b_button = msg.buttons[1] if len(msg.buttons) > 1 else 0  # B button
         
         # Left Stick Click: Set current location as home
         if left_stick_click == 1 and not self.left_stick_click_pressed:
@@ -108,6 +112,13 @@ class XboxReturnToBase(Node):
             self.a_pressed = True
         elif a_button == 0:
             self.a_pressed = False
+        
+        # B Button: Reset home to default
+        if b_button == 1 and not self.b_pressed:
+            self.reset_home_to_default()
+            self.b_pressed = True
+        elif b_button == 0:
+            self.b_pressed = False
     
     def set_home_to_current(self):
         """Set home position to current robot location"""
@@ -124,6 +135,20 @@ class XboxReturnToBase(Node):
         
         self.get_logger().info('=' * 60)
         self.get_logger().info(f'✓ Home position updated to current location:')
+        self.get_logger().info(f'  X: {self.home_x:.2f} m')
+        self.get_logger().info(f'  Y: {self.home_y:.2f} m')
+        self.get_logger().info(f'  Yaw: {math.degrees(self.home_yaw):.1f}°')
+        self.get_logger().info('=' * 60)
+    
+    def reset_home_to_default(self):
+        """Reset home position to map origin (0, 0, 0)"""
+        self.home_x = 0.0
+        self.home_y = 0.0
+        self.home_yaw = 0.0
+        self.home_is_custom = False
+        
+        self.get_logger().info('=' * 60)
+        self.get_logger().info('🔄 Home position RESET to default (map origin):')
         self.get_logger().info(f'  X: {self.home_x:.2f} m')
         self.get_logger().info(f'  Y: {self.home_y:.2f} m')
         self.get_logger().info(f'  Yaw: {math.degrees(self.home_yaw):.1f}°')
