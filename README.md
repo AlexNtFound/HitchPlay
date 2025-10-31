@@ -27,7 +27,7 @@ After completing the initial setup, you can choose how to control the rover:
 #### Option 1: Android App Control
 To control the rover using the Hitch Play Android app, follow the instructions in [ursa/android/ChatApp/README.md](ursa/android/ChatApp/README.md)
 
-#### Option 2: Linux PC Control
+#### Option 2: Linux PC Control (Recommanded if you don't have a compatible phone)
 To control the rover using RViz on a Linux PC, follow the instructions in [rviz/README.md](rviz/README.md)
 
 ## License
