@@ -1,13 +1,10 @@
-# RViz Configuration Files
-
-This directory contains RViz2 configuration files for visualizing the Leo Rover's sensor data, navigation, and robot state.
-
 ## Overview
 
 This README guides you through setting up a **PC User Interface** for full remote control of the Leo Rover. By following these instructions, you'll be able to:
 
 - **Visualize** Leo Rover's sensor data, navigation, and real-time status using RViz2
 - **Control** Leo Rover remotely using an Xbox controller
+- **Navigate autonomously** with return-to-base functionality
 - **Monitor** all robot systems from your computer without needing to interact directly with the rover
 
 This setup creates a complete operator station on your PC, allowing you to operate Leo Rover over the network as if you were sitting at the robot itself.
@@ -49,7 +46,7 @@ source ~/.bashrc
 ```bash
 # 1. Find Leo Rover's IP address (on Leo Rover)
 hostname -I
-# Example: 192.168.1.100
+# Example: 10.0.0.1
 
 # 2. On remote computer, verify network connection
 ping <leo_rover_ip>
@@ -108,24 +105,65 @@ ls /dev/input/js*
 # Should show: /dev/input/js0
 ```
 
-### Launch Controller Nodes
+### Setup Return to Base Script
 
-**Terminal 1** - Start the joy node:
-```bash
-ros2 run joy joy_node --ros-args -p device_id:=0
-```
+Make the script executable:
 
-**Terminal 2** - Start the teleop node:
 ```bash
-ros2 run teleop_twist_joy teleop_node --ros-args -p enable_button:=4 -p axis_linear.x:=1 -p axis_angular.yaw:=0 -p scale_linear.x:=0.5 -p scale_angular.yaw:=1.0
+# Navigate to repository directory
+cd /path/to/repository
+
+# Make the script executable
+chmod +x xbox_return_to_base.py
 ```
 
 ### Controller Layout
 
-- **Left Bumper (LB)**: Hold to enable movement (deadman switch)
-- **Left Stick Up/Down**: Drive forward/backward
-- **Right Stick Left/Right**: Rotate left/right
-- **Release LB**: Emergency stop
+```
+Xbox Controller Map:
+┌─────────────────────────────────────┐
+│                                     │
+│   [LB]                       [RB]   │  
+│    ↑                          ↑     │
+│  Hold to                   Return   │
+│  enable                    to home  │
+│  driving                            │
+│                                     │
+│   [A]               [B]             │
+│    ↑                 ↑              │
+│   Cancel/Stop    Reset home         │
+│   navigation     to default         │
+│                                     │
+│  Left Stick          Right Stick    │
+│  ┌────────┐          ┌────────┐     │
+│  │   ↑    │          │        │     │
+│  │   +    │ Forward/ │ ← + →  │ Rotate
+│  │   ↓    │ Backward │        │ only│
+│  └────────┘  only    └────────┘     │
+│  (click to                          │
+│   set home)                         │
+│                                     │
+│                                     │
+│                                     │
+│                                     │
+│                                     │
+│                                     │
+└─────────────────────────────────────┘
+```
+
+### Controller Functions
+
+**Manual Control:**
+- **LB (Hold)**: Enable movement (deadman switch)
+- **Left Stick Y-axis**: Drive forward/backward only
+- **Right Stick X-axis**: Rotate left/right only
+- **Release LB**: Immediate stop
+
+**Autonomous Navigation:**
+- **RB (Press)**: Return to home position
+- **Left Stick Click**: Set current location as new home
+- **B Button**: Reset home to default (map origin 0,0)
+- **A Button**: Cancel/stop active navigation
 
 ### Testing Controller
 
@@ -139,24 +177,82 @@ Hold LB and move the sticks - you should see velocity messages and Leo should re
 ## Usage
 
 ### Quick Start - Full PC User Interface
+
+**On Leo Rover:**
 ```bash
-# Terminal 1: Start Leo Rover (on Leo Rover)
+# Terminal 1: Start Leo Rover base system
 source /opt/ros/jazzy/setup.bash
 ros2 run leo_bringup leo_system
 ```
+
 ```bash
-# Terminal 2: Launch RViz visualization (on your PC)
+# Terminal 2: Start Sllidar
+source ~/ws_lidar/install/setup.bash
+ros2 launch sllidar_ros2 view_sllidar_a2m12_nogui_launch.py
+```
+
+```bash
+# Terminal 3: Add tf transform
+source /opt/ros/jazzy/setup.bash
+ros2 run tf2_ros static_transform_publisher --x 0.03 --y 0 --z 0.08 --yaw 3.14159 --pitch 0 --roll 0 --frame-id base_link --child-frame-id laser
+```
+
+```bash
+# Terminal 4: Launch Slam_toolbox
+source /opt/ros/jazzy/setup.bash
+ros2 launch slam_toolbox online_async_launch.py use_sim_time:=false
+```
+
+```bash
+# Terminal 5: Launch Nav2
+source /opt/ros/jazzy/setup.bash
+source ~/leo_ws/install/setup.bash
+ros2 launch nav2_bringup navigation_launch.py params_file:=$HOME/leo_ws/src/LeoRover-SLAM-ROS2/nav2_simple.yaml slam:=true
+```
+
+**On Your PC:**
+```bash
+# Terminal 1: Launch RViz visualization
 cd /path/to/repository
 ros2 run rviz2 rviz2 -d rviz/leo_rover.rviz
 
-# Terminal 3: Start Xbox controller joy node (on your PC)
+# Terminal 2: Start Xbox controller joy node
 ros2 run joy joy_node --ros-args -p device_id:=0
 
-# Terminal 4: Start Xbox controller teleop node (on your PC)
-ros2 run teleop_twist_joy teleop_node --ros-args -p enable_button:=4 -p axis_linear.x:=1 -p axis_angular.yaw:=0 -p scale_linear.x:=0.5 -p scale_angular.yaw:=1.0
+# Terminal 3: Start Xbox controller teleop node
+ros2 run teleop_twist_joy teleop_node --ros-args \
+  -p enable_button:=4 \
+  -p axis_linear.x:=1 \
+  -p axis_angular.yaw:=3 \
+  -p scale_linear.x:=0.5 \
+  -p scale_angular.yaw:=1.0
+
+# Terminal 4: Start return to base script
+python3 /path/to/repository/xbox_return_to_base.py
 ```
 
-**You now have a complete operator station:** RViz shows you what Leo sees, and the Xbox controller lets you drive it remotely!
+**You now have a complete operator station:** RViz shows you what Leo sees, Xbox controller lets you drive manually, and autonomous return-to-base functionality!
+
+### Typical Workflow
+
+1. **Manual Exploration**
+   - Hold LB and use sticks to drive around
+   - Build map using SLAM
+   
+2. **Set Home Location**
+   - Drive to desired home/base location
+   - Click left stick to set as home
+   
+3. **Explore Further**
+   - Drive away from home base
+   - Use RViz to monitor map building
+   
+4. **Return Home**
+   - Press RB to autonomously navigate back
+   - Press A if you need to cancel navigation
+   
+5. **Reset Home (if needed)**
+   - Press B to reset home to map origin (0,0)
 
 ### What's Included
 
@@ -192,6 +288,9 @@ ros2 run teleop_twist_joy teleop_node --ros-args -p enable_button:=4 -p axis_lin
 | Xbox controller not detected | Check: `ls /dev/input/js*` and install `joystick` package |
 | Controller moves but Leo doesn't | Verify `/cmd_vel` is being published: `ros2 topic echo /cmd_vel` |
 | Permission denied on controller | Add user to input group: `sudo usermod -a -G input $USER` (logout/login) |
+| Wrong stick controls movement | Verify axis mapping: `ros2 topic echo /joy` and check axes values |
+| Return to base doesn't work | Ensure SLAM and Nav2 are running; check `/goal_pose` topic |
+| Can't cancel navigation | Press A button; check script is running: `ps aux | grep xbox_return` |
 
 ## Notes
 
@@ -202,3 +301,6 @@ ros2 run teleop_twist_joy teleop_node --ros-args -p enable_button:=4 -p axis_lin
 - Xbox controller connects to the remote computer, not the Leo Rover
 - Always hold the deadman switch (LB) when operating the rover for safety
 - This setup enables full remote operation: visualization + control from a single PC workstation
+- **Return to base uses `/map` frame** - home location is fixed in the map coordinate system
+- Default home is map origin (0,0) where SLAM was initialized
+- Custom home locations persist until reset with B button or script restart
