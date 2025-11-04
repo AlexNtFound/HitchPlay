@@ -16,13 +16,24 @@ Hitch Play contains two parts, which should be installed separately.
 Here is a short demo video:
 [Hitch Play Demo](https://drive.google.com/file/d/1GatD-wnXYO9-Zkg2-0efDdhuACMSJTps/view)
 
+## Getting Started
+
+### First-Time Setup
+For initial setup of the rover system, please follow the instructions in [src/INSTRUCTIONS.md](src/INSTRUCTIONS.md)
+
+### Control Options
+After completing the initial setup, you can choose how to control the rover:
+
+#### Option 1: Android App Control
+To control the rover using the Hitch Play Android app, follow the instructions in [ursa/android/ChatApp/README.md](ursa/android/ChatApp/README.md)
+
+#### Option 2: Linux PC Control (Recommanded if you don't have a compatible phone)
+To control the rover using RViz on a Linux PC, follow the instructions in [rviz/README.md](rviz/README.md)
+
 ## License
 This project is licensed under GNU Affero General Public License (AGPL).
-
 This project includes third-party code in ursa directory licensed separately:
 - Qualcomm BSD-3-Clause License ([qualcomm-bsd3-clause.txt](third-party-licenses/qualcomm-bsd3-clause.txt))
-
 ## Contributors
 * Rover ROS2 Server: Kai Mohl, Franco Huang, Tianlun Zhang, Alex Nan, Michael Wu, and Dr. Allen Y. Yang
-
 (c) Copyright, 2025.
