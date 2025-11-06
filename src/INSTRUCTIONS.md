@@ -18,13 +18,17 @@ When the battery's indicator is blinking green, it indicates that the charge is 
 
 4. I/O Connection: It is recommended that the onboard Wi-Fi antenna connects to one of the USB2 port; the onboard Sllidar connects to the other USB2 port. 
 
-Leo Rover has a built-in exposed USB connection port. This will really come in handy if we need to connect a keyboard and mouse for debugging. So we recommend to keep this exposed external USB port connect internally to one of the USB3.1 port. The second USB3.1 port is recommended to be connected to the SSD drive for booting the OS (see Software Scheme below).
+Leo Rover has a built-in exposed USB connection port. This will really come in handy if we need to connect a keyboard and mouse for debugging. So we recommend to keep this exposed external USB port connect internally to one of the USB3.1 port.
 
-5. Verification of bootable SSD drive partition.
+<span style="color:red;">
+5. (Optional) Bootable SSD drive partition.
+   
+The original Leo Rover package comes with the Leo OS on a microSD card. MicroSD cards typically have lower I/O bandwidth and shorter lifespan and endurance compared to SSD memory. Therefore, it is recommended to replace the factory microSD card with a custom SSD boot drive. The SSD drive to boot the OS can be installed to the second USB3.1 port on the Pi 5 board.
 
 Custom SSD drive may have different capacity, while the official LeoOS image may only create one very small boot segment and one root segment. To fully utilize the SSD capacity, please install gnome-disks GUI app, and resize the the root segment to the max capacity. This will allow the root directory to be able to store larger ROS packages and data later.
 
 Finally, if connecting an external monitor is needed, we recommend connecting the mini-HDMI with its onboard HDMI0 port.
+</span>
 
 ## 2. Software Setup and Development
 
