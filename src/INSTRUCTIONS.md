@@ -262,3 +262,70 @@ ros2 launch nav2_bringup navigation_launch.py params_file:=$HOME/leo_ws/src/LeoR
 source /opt/ros/jazzy/setup.bash
 ros2 launch rosbridge_server rosbridge_websocket_launch.xml
 ```
+
+
+## 5. Using Custom Drive Package for Relative Movement Commands
+
+The `custom_drive_pkg` converts relative movement commands (e.g., "move forward 2m" or "turn right 90°") into absolute navigation goals for Nav2.
+
+### Building the Package
+
+Already built with step 3.2, or rebuild separately:
+```bash
+cd ~/leo_ws
+colcon build --symlink-install --packages-select custom_drive_pkg
+source install/setup.bash
+```
+
+### Usage
+
+**Basic syntax:**
+```bash
+ros2 run custom_drive_pkg drive_publisher --ros-args -p forward:=<meters> -p rotate:=<degrees>
+```
+
+**Parameters:**
+- `forward`: Distance in meters (positive = forward, negative = backward)
+- `rotate`: Angle in degrees (positive = left, negative = right)
+
+### Examples
+```bash
+# Move forward 2m
+ros2 run custom_drive_pkg drive_publisher --ros-args -p forward:=2.0 -p rotate:=0.0
+
+# Turn right 90°
+ros2 run custom_drive_pkg drive_publisher --ros-args -p forward:=0.0 -p rotate:=-90.0
+
+# Move forward 1.5m and turn left 45°
+ros2 run custom_drive_pkg drive_publisher --ros-args -p forward:=1.5 -p rotate:=45.0
+
+# Move backward 1m
+ros2 run custom_drive_pkg drive_publisher --ros-args -p forward:=-1.0 -p rotate:=0.0
+```
+
+### Movement Sequences
+
+Create a bash script for multiple movements:
+```bash
+#!/bin/bash
+source ~/leo_ws/install/setup.bash
+
+ros2 run custom_drive_pkg drive_publisher --ros-args -p forward:=2.0 -p rotate:=0.0
+sleep 15  # Wait for completion
+
+ros2 run custom_drive_pkg drive_publisher --ros-args -p forward:=0.0 -p rotate:=-90.0
+sleep 10
+```
+
+### Important Notes
+
+1. **Prerequisites:** Ensure Leo system, Sllidar, TF transform, SLAM, and Nav2 are running (use `start_all.sh`)
+
+2. **Wait between commands:** Allow 10-15 seconds between commands for navigation to complete
+
+3. **Troubleshooting:**
+   - **"Could not find connection between 'map' and 'base_link'"** → Check SLAM is running: `ros2 node list | grep slam`
+   - **"Timed out waiting for action server"** → Wait longer between commands
+   - **Robot doesn't move** → Check Nav2 terminal for "Reached the goal!" message
+
+4. **Coordinate system:** Robot moves forward relative to its current orientation in the map frame
