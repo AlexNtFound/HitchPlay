@@ -182,8 +182,8 @@ Hold LB and move the sticks - you should see velocity messages and Leo should re
 
 > **💡 Quick Deploy Tip:** If you understand what the script does, you can use the automated startup script instead of running the commands below manually:
 > ```bash
-> cd ~/leo_ws/src/LeoRover-SLAM-ROS2
-> ./src/start_all.sh
+> cd ~/path/to/start_all.sh
+> .start_all.sh
 > ```
 > This will launch all necessary nodes in separate terminal windows. Otherwise, follow the manual steps below:
 
