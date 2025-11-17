@@ -88,7 +88,7 @@ sudo chmod +x /etc/rc.local
 ```bash
 sudo apt install gnome-disk-utility
 gnome-disks
-```bash
+```
 
 4. **安装 rplidar 的 ROS 包与驱动**
 
@@ -113,13 +113,13 @@ echo "source ~/ws_lidar/install/setup.bash" >> ~/.bashrc
 # 更新软件源
 sudo apt update
 # 安装 Nav2
-sudo apt install ros-$ROS_DISTRO-navigation2 ros-$ROS_DISTRO-nav2-bringup
+sudo apt install ros-jazzy-navigation2 ros-$ROS_DISTRO-nav2-bringup
 #（可选但推荐）安装更多 Nav2 组件
-sudo apt install ros-$ROS_DISTRO-nav2-*
+sudo apt install ros-jazzy-nav2-*
 # 依赖项
-sudo apt install ros-$ROS_DISTRO-robot-localization
-sudo apt install ros-$ROS_DISTRO-joint-state-publisher
-sudo apt install ros-$ROS_DISTRO-robot-state-publisher
+sudo apt install ros-jazzy-robot-localization
+sudo apt install ros-jazzy-joint-state-publisher
+sudo apt install ros-jazzy-robot-state-publisher
 ```
 
 SLAM Toolbox 通常会随 ROS2 Jazzy 与 Nav2 一并安装；若未安装，可执行：
@@ -131,6 +131,14 @@ sudo apt install ros-jazzy-slam-toolbox ros-jazzy-pointcloud-to-laserscan
 sudo apt install ros-jazzy-nav2-map-server
 sudo apt install ros-jazzy-nav2-lifecycle-manager
 ```
+
+6. **可选：安装 RustDesk 远程桌面共享软件**
+```bash
+cd ~
+wget https://github.com/rustdesk/rustdesk/releases/download/1.4.3/rustdesk-1.4.3-aarch64.deb
+sudo apt install ./rustdesk-1.4.3-aarch64.deb
+```
+
 
 ## 3. 构建 Leo Rover 的 SLAM 服务器与 API 服务器
 
