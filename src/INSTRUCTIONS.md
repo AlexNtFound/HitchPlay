@@ -134,6 +134,11 @@ sudo apt install ros-jazzy-nav2-map-server
 sudo apt install ros-jazzy-nav2-lifecycle-manager
 ```
 
+6. Update Leo board firmware
+
+Please follow the Documentation to update the Leo board firmware: 
+[How to update Leo Rover firmware](https://docs.fictionlab.pl/leo-rover/guides/firmware-update)
+
 ## 3. Build the Leo Rover SLAM server and API server
 
 
