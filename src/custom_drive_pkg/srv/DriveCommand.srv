@@ -1,0 +1,7 @@
+# Request
+float64 forward  # meters
+float64 rotate  # degrees
+---
+# Response
+bool success
+string message
