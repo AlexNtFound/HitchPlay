@@ -17,11 +17,11 @@
 using NavigateToPose = nav2_msgs::action::NavigateToPose;
 using GoalHandleNav = rclcpp_action::ClientGoalHandle<NavigateToPose>;
 
-class DriveService : public rclcpp::Node
+class SequentialDriveService : public rclcpp::Node
 {
 public:
-    DriveService()
-    : Node("drive_service"),
+    SequentialDriveService()
+    : Node("sequential_drive_service"),
       tf_buffer_(std::make_shared<tf2_ros::Buffer>(this->get_clock())),
       tf_listener_(std::make_shared<tf2_ros::TransformListener>(*tf_buffer_))
     {
@@ -33,13 +33,13 @@ public:
         nav_client_ = rclcpp_action::create_client<NavigateToPose>(this, "navigate_to_pose");
         
         drive_service_ = this->create_service<custom_drive_pkg::srv::DriveCommand>(
-            "drive_command",
-            std::bind(&DriveService::handle_drive, this, std::placeholders::_1, std::placeholders::_2));
+            "sequential_drive_command",
+            std::bind(&SequentialDriveService::handle_drive, this, std::placeholders::_1, std::placeholders::_2));
         
         RCLCPP_INFO(this->get_logger(), "╔════════════════════════════════════════╗");
         RCLCPP_INFO(this->get_logger(), "║   Sequential Drive Service Ready       ║");
         RCLCPP_INFO(this->get_logger(), "╚════════════════════════════════════════╝");
-        RCLCPP_INFO(this->get_logger(), "Service: /drive_command");
+        RCLCPP_INFO(this->get_logger(), "Service: /sequential_drive_command");
         RCLCPP_INFO(this->get_logger(), "Supports infinite sequential commands");
     }
 
@@ -220,7 +220,7 @@ private:
 int main(int argc, char ** argv)
 {
     rclcpp::init(argc, argv);
-    rclcpp::spin(std::make_shared<DriveService>());
+    rclcpp::spin(std::make_shared<SequentialDriveService>());
     rclcpp::shutdown();
     return 0;
 }
