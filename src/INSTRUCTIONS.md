@@ -18,13 +18,17 @@ When the battery's indicator is blinking green, it indicates that the charge is 
 
 4. I/O Connection: It is recommended that the onboard Wi-Fi antenna connects to one of the USB2 port; the onboard Sllidar connects to the other USB2 port. 
 
-Leo Rover has a built-in exposed USB connection port. This will really come in handy if we need to connect a keyboard and mouse for debugging. So we recommend to keep this exposed external USB port connect internally to one of the USB3.1 port. The second USB3.1 port is recommended to be connected to the SSD drive for booting the OS (see Software Scheme below).
+Leo Rover has a built-in exposed USB connection port. This will really come in handy if we need to connect a keyboard and mouse for debugging. So we recommend to keep this exposed external USB port connect internally to one of the USB3.1 port.
 
-5. Verification of bootable SSD drive partition.
+<span style="color:red;">
+5. (Optional) Bootable SSD drive partition.
+   
+The original Leo Rover package comes with the Leo OS on a microSD card. MicroSD cards typically have lower I/O bandwidth and shorter lifespan and endurance compared to SSD memory. Therefore, it is recommended to replace the factory microSD card with a custom SSD boot drive. The SSD drive to boot the OS can be installed to the second USB3.1 port on the Pi 5 board.
 
 Custom SSD drive may have different capacity, while the official LeoOS image may only create one very small boot segment and one root segment. To fully utilize the SSD capacity, please install gnome-disks GUI app, and resize the the root segment to the max capacity. This will allow the root directory to be able to store larger ROS packages and data later.
 
 Finally, if connecting an external monitor is needed, we recommend connecting the mini-HDMI with its onboard HDMI0 port.
+</span>
 
 ## 2. Software Setup and Development
 
@@ -129,6 +133,11 @@ sudo apt install ros-jazzy-slam-toolbox ros-jazzy-pointcloud-to-laserscan
 sudo apt install ros-jazzy-nav2-map-server
 sudo apt install ros-jazzy-nav2-lifecycle-manager
 ```
+
+6. Update Leo board firmware
+
+Please follow the Documentation to update the Leo board firmware: 
+[How to update Leo Rover firmware](https://docs.fictionlab.pl/leo-rover/guides/firmware-update)
 
 ## 3. Build the Leo Rover SLAM server and API server
 
@@ -266,7 +275,8 @@ ros2 launch rosbridge_server rosbridge_websocket_launch.xml
 
 ## 5. Using Custom Drive Package for Relative Movement Commands
 
-The `custom_drive_pkg` converts relative movement commands (e.g., "move forward 2m" or "turn right 90°") into absolute navigation goals for Nav2.
+The `custom_drive_pkg` provides a persistent service that converts relative movement commands (e.g., "move forward 2m" or "turn right 90°") into absolute navigation goals for Nav2.
+
 
 ### Building the Package
 
@@ -277,55 +287,75 @@ colcon build --symlink-install --packages-select custom_drive_pkg
 source install/setup.bash
 ```
 
+
+### Starting the Drive Service
+
+The drive service runs continuously and accepts multiple commands without restarting:
+```bash
+source ~/leo_ws/install/setup.bash
+ros2 run custom_drive_pkg drive_service
+```
+
+**Note:** If using `start_all.sh`, the drive service starts automatically with all other systems.
+
+
 ### Usage
 
 **Basic syntax:**
 ```bash
-ros2 run custom_drive_pkg drive_publisher --ros-args -p forward:=<meters> -p rotate:=<degrees>
+
+ros2 service call /drive_command custom_drive_pkg/srv/DriveCommand "{forward: <meters>, rotate: <degrees>}"
+
 ```
 
 **Parameters:**
 - `forward`: Distance in meters (positive = forward, negative = backward)
-- `rotate`: Angle in degrees (positive = left, negative = right)
+
+- `rotate`: Angle in degrees (positive = left/counter-clockwise, negative = right/clockwise)
+
 
 ### Examples
 ```bash
 # Move forward 2m
-ros2 run custom_drive_pkg drive_publisher --ros-args -p forward:=2.0 -p rotate:=0.0
+ros2 service call /drive_command custom_drive_pkg/srv/DriveCommand "{forward: 2.0, rotate: 0.0}"
 
 # Turn right 90°
-ros2 run custom_drive_pkg drive_publisher --ros-args -p forward:=0.0 -p rotate:=-90.0
+ros2 service call /drive_command custom_drive_pkg/srv/DriveCommand "{forward: 0.0, rotate: -90.0}"
+
+# Turn left 90°
+ros2 service call /drive_command custom_drive_pkg/srv/DriveCommand "{forward: 0.0, rotate: 90.0}"
 
 # Move forward 1.5m and turn left 45°
-ros2 run custom_drive_pkg drive_publisher --ros-args -p forward:=1.5 -p rotate:=45.0
+ros2 service call /drive_command custom_drive_pkg/srv/DriveCommand "{forward: 1.5, rotate: 45.0}"
 
 # Move backward 1m
-ros2 run custom_drive_pkg drive_publisher --ros-args -p forward:=-1.0 -p rotate:=0.0
+ros2 service call /drive_command custom_drive_pkg/srv/DriveCommand "{forward: -1.0, rotate: 0.0}"
 ```
 
-### Movement Sequences
-
-Create a bash script for multiple movements:
-```bash
-#!/bin/bash
-source ~/leo_ws/install/setup.bash
-
-ros2 run custom_drive_pkg drive_publisher --ros-args -p forward:=2.0 -p rotate:=0.0
-sleep 15  # Wait for completion
-
-ros2 run custom_drive_pkg drive_publisher --ros-args -p forward:=0.0 -p rotate:=-90.0
-sleep 10
-```
 
 ### Important Notes
 
 1. **Prerequisites:** Ensure Leo system, Sllidar, TF transform, SLAM, and Nav2 are running (use `start_all.sh`)
 
-2. **Wait between commands:** Allow 10-15 seconds between commands for navigation to complete
 
-3. **Troubleshooting:**
-   - **"Could not find connection between 'map' and 'base_link'"** → Check SLAM is running: `ros2 node list | grep slam`
-   - **"Timed out waiting for action server"** → Wait longer between commands
+2. **Service must be running:** The drive service must be active to accept commands. Check with:
+```bash
+   ros2 service list | grep drive_command
+```
+
+3. **Wait between commands:** Allow 10-15 seconds between commands for navigation to complete
+
+4. **Advantages over drive_publisher:**
+   - No connection delay - service stays running
+   - Faster command execution
+   - Single command per movement
+   - Automatically cancels previous navigation
+
+5. **Troubleshooting:**
+   - **"Service not available"** → Check drive service is running: `ros2 node list | grep drive_service`
+   - **"Failed to get pose"** → Ensure SLAM is running: `ros2 node list | grep slam`
    - **Robot doesn't move** → Check Nav2 terminal for "Reached the goal!" message
+   - **"Could not find connection between 'map' and 'base_link'"** → Verify TF tree: `ros2 run tf2_ros tf2_echo map base_link`
 
-4. **Coordinate system:** Robot moves forward relative to its current orientation in the map frame
+6. **Coordinate system:** Robot moves forward relative to its current orientation in the map frame. Nav2 handles all path planning and obstacle avoidance automatically.
+
