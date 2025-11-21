@@ -34,7 +34,7 @@ Finally, if connecting an external monitor is needed, we recommend connecting th
 
 ### Software Scheme:
 
-The 2025 version of Leo Rover runs on Raspberry Pi5 with Ubuntu 24.04 and ROS2 Jazzy. The rover’s connection to external devices is permitted through its onboard wifi chip. Although the onboard wifi does not have to be connected to another wifi network/the internet, connection to the rover’s wifi is necessary to ssh into either computer and transmit information via the api server/websockets.
+The 2025 version of Leo Rover runs on Raspberry Pi5 with Ubuntu 24.04 and ROS2 Jazzy. The rover's connection to external devices is permitted through its onboard wifi chip. Although the onboard wifi does not have to be connected to another wifi network/the internet, connection to the rover's wifi is necessary to ssh into either computer and transmit information via the api server/websockets.
 
 * The default Leo Rover WiFi password: password
 * The default Pi5 login through the Leo Rover WiFi is: pi@10.0.0.1, Password: raspberry
@@ -90,7 +90,7 @@ sudo chmod +x /etc/rc.local
 ```bash
 sudo apt install gnome-disk-utility
 gnome-disks
-```bash
+```
 
 4. Install rplidar ROS package and driver
 
@@ -182,7 +182,7 @@ sudo nano /opt/ros/jazzy/share/leo_bringup/launch/leo_bringup.launch.xml
 ```
 
 Comment out the following lines
-```script
+```xml
 <!--
 <node name="rosbridge_server"
       pkg="rosbridge_server"
@@ -272,80 +272,106 @@ source /opt/ros/jazzy/setup.bash
 ros2 launch rosbridge_server rosbridge_websocket_launch.xml
 ```
 
-## 5. Using Custom Drive Package for Relative Movement Commands
+## 5. Setting Up Automatic Startup on Boot
 
-The `custom_drive_pkg` provides a persistent service that converts relative movement commands (e.g., "move forward 2m" or "turn right 90°") into absolute navigation goals for Nav2.
+To make the Leo Rover start all services automatically when powered on, we'll create a systemd service that runs the `start_all.sh` script on boot.
 
-### Building the Package
 
-Already built with step 3.2, or rebuild separately:
+### Creating the Systemd Service
+
+
+1. Create the service file:
+
 ```bash
-cd ~/leo_ws
-colcon build --symlink-install --packages-select custom_drive_pkg
-source install/setup.bash
-```
-
-### Starting the Drive Service
-
-The drive service runs continuously and accepts multiple commands without restarting:
-```bash
-source ~/leo_ws/install/setup.bash
-ros2 run custom_drive_pkg drive_service
-```
-
-**Note:** If using `start_all.sh`, the drive service starts automatically with all other systems.
-
-### Usage
-
-**Basic syntax:**
-```bash
-ros2 service call /drive_command custom_drive_pkg/srv/DriveCommand "{forward: <meters>, rotate: <degrees>}"
-```
-
-**Parameters:**
-- `forward`: Distance in meters (positive = forward, negative = backward)
-- `rotate`: Angle in degrees (positive = left/counter-clockwise, negative = right/clockwise)
-
-### Examples
-```bash
-# Move forward 2m
-ros2 service call /drive_command custom_drive_pkg/srv/DriveCommand "{forward: 2.0, rotate: 0.0}"
-
-# Turn right 90°
-ros2 service call /drive_command custom_drive_pkg/srv/DriveCommand "{forward: 0.0, rotate: -90.0}"
-
-# Turn left 90°
-ros2 service call /drive_command custom_drive_pkg/srv/DriveCommand "{forward: 0.0, rotate: 90.0}"
-
-# Move forward 1.5m and turn left 45°
-ros2 service call /drive_command custom_drive_pkg/srv/DriveCommand "{forward: 1.5, rotate: 45.0}"
-
-# Move backward 1m
-ros2 service call /drive_command custom_drive_pkg/srv/DriveCommand "{forward: -1.0, rotate: 0.0}"
+sudo nano /etc/systemd/system/leo-startup.service
 ```
 
 
-### Important Notes
+2. Add the following content to the file:
 
-1. **Prerequisites:** Ensure Leo system, Sllidar, TF transform, SLAM, and Nav2 are running (use `start_all.sh`)
+```ini
+[Unit]
+Description=Leo Rover Startup Service
+After=network.target
+Wants=network-online.target
 
-2. **Service must be running:** The drive service must be active to accept commands. Check with:
-```bash
-   ros2 service list | grep drive_command
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/leo_ws
+ExecStart=/bin/bash /home/pi/leo_ws/src/start_all.sh
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
 ```
 
-3. **Wait between commands:** Allow 10-15 seconds between commands for navigation to complete
+**Important Notes:**
+- Replace `pi` with your actual username if different
+- Adjust the paths if your workspace is located elsewhere
+- `Type=forking` assumes your script launches background processes
+- `Restart=on-failure` will restart the service if it crashes
+- `After=network.target` ensures network is ready before starting
 
-4. **Advantages over drive_publisher:**
-   - No connection delay - service stays running
-   - Faster command execution
-   - Single command per movement
-   - Automatically cancels previous navigation
+3. Reload systemd to recognize the new service:
 
-5. **Troubleshooting:**
-   - **"Service not available"** → Check drive service is running: `ros2 node list | grep drive_service`
-   - **"Failed to get pose"** → Ensure SLAM is running: `ros2 node list | grep slam`
-   - **Robot doesn't move** → Check Nav2 terminal for "Reached the goal!" message
-   - **"Could not find connection between 'map' and 'base_link'"** → Verify TF tree: `ros2 run tf2_ros tf2_echo map base_link`
 
-6. **Coordinate system:** Robot moves forward relative to its current orientation in the map frame. Nav2 handles all path planning and obstacle avoidance automatically.
+```bash
+
+sudo systemctl daemon-reload
+```
+
+4. Enable the service to start on boot:
+
+```bash
+sudo systemctl enable leo-startup.service
+```
+
+
+5. Start the service immediately (without rebooting):
+
+```bash
+sudo systemctl start leo-startup.service
+```
+
+
+### Managing the Service
+
+**Check service status:**
+```bash
+sudo systemctl status leo-startup.service
+```
+
+**Stop the service:**
+```bash
+sudo systemctl stop leo-startup.service
+```
+
+**Restart the service:**
+```bash
+sudo systemctl restart leo-startup.service
+```
+
+**Disable auto-start on boot:**
+```bash
+sudo systemctl disable leo-startup.service
+```
+
+
+## 6. Custom Drive Package for Robot Control
+
+The `custom_drive_pkg` provides services for controlling the Leo Rover with relative movement commands and sequential navigation automation.
+
+**For complete documentation, usage examples, and API integration guide, see:**
+
+📖 **[custom_drive_pkg/README.md](./custom_drive_pkg/README.md)**
+
+The package includes:
+- **Original Drive Service** - Single-command navigation with immediate response
+- **Sequential Drive Service** - Multi-step automated navigation for AI agent integration
+
+Both services are built automatically with step 3.2 above and can be started with `start_all.sh` or individually as documented in the README.
+
