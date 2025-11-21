@@ -284,7 +284,7 @@ After=network.target
 Wants=network-online.target
 
 [Service]
-Type=forking
+Type=simple
 User=pi
 WorkingDirectory=/home/pi/leo_ws
 ExecStart=/bin/bash /home/pi/leo_ws/src/start_all.sh
