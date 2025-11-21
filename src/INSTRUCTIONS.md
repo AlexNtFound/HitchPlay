@@ -191,6 +191,15 @@ Comment out the following lines
 </node>
 -->
 ```
+You also need to change the rosbridge_websocket's launch file to prevent mismatch param type:
+
+```
+sudo nano /opt/ros/jazzy/share/rosbridge_server/launch/rosbridge_websocket_launch.xml 
+```
+In line 11, change the 0 to 0.0:
+```
+<arg name="delay_between_messages" default="0.0" />
+```
 
 The change will take effect after reboot
 
