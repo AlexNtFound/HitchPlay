@@ -14,7 +14,7 @@ This setup creates a complete operator station on your PC (Windows or Ubuntu), a
 **Click your operating system to jump to setup instructions:**
 
 - **[Ubuntu 24.04 Setup](#ubuntu-setup)** - Native ROS 2 Jazzy installation
-- **[Windows 11 Setup](#windows-setup)** - ROS 2 Jazzy via pixi (WSL2 not supported)
+- **[Windows 10/11 Setup](#windows-setup)** - ROS 2 Jazzy via pixi (WSL2 not supported)
 
 ---
 
