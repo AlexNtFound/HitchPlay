@@ -106,7 +106,7 @@ Move the sticks - you should see velocity messages and Leo should respond.
    ```cmd
    # Download and install pixi
    # Create workspace
-   mkdir C:\pixi_ws
+   md C:\pixi_ws
    cd C:\pixi_ws
    
    # Initialize pixi and install ROS 2 Jazzy
