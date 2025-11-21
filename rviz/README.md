@@ -165,9 +165,6 @@ ros2 topic list
 # Windows will automatically detect Xbox controllers
 # Verify in Device Manager under "Xbox Peripherals"
 
-# Navigate to repository directory
-cd C:\path\to\repository
-
 # Test the script
 cd C:\pixi_ws
 pixi shell
