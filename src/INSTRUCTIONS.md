@@ -115,13 +115,13 @@ echo "source ~/ws_lidar/install/setup.bash" >> ~/.bashrc
 # Update package lists
 sudo apt update
 # Install Nav2
-sudo apt install ros-$ROS_DISTRO-navigation2 ros-$ROS_DISTRO-nav2-bringup
+sudo apt install ros-jazzy-navigation2 ros-jazzy-nav2-bringup
 # Install additional Nav2 packages (optional but useful)
-sudo apt install ros-$ROS_DISTRO-nav2-*
+sudo apt install ros-jazzy-nav2-*
 # Install dependencies
-sudo apt install ros-$ROS_DISTRO-robot-localization
-sudo apt install ros-$ROS_DISTRO-joint-state-publisher
-sudo apt install ros-$ROS_DISTRO-robot-state-publisher
+sudo apt install ros-jazzy-robot-localization
+sudo apt install ros-jazzy-joint-state-publisher
+sudo apt install ros-jazzy-robot-state-publisher
 ```
 
 SLAM Toolbox should be installed by default together with ROS2 Jazzy and Nav2 above. In case it is not installed, try
@@ -209,7 +209,7 @@ ros2 run leo_bringup leo_system
    
 2. Start Sllidar
 
-Before launching sllidar, we need to customize the sllidar's scan frequency, and we want to disable the RViz to conserve CPU cycle. To do that, save a new view_sllidar_a2m12_nogui_launch.py by changing the original launch file view_sllidar_a2m12_launch.py:
+Before launching sllidar, we need to customize the sllidar's scan frequency, and we want to disable the RViz to conserve CPU cycle. To do that, create a new view_sllidar_a2m12_nogui_launch.py by copying the original launch file view_sllidar_a2m12_launch.py from ~/ws_lidar/src/sllidar_ros2/launch/ to ~/ws_lidar/install/sllidar_ros2/share/sllidar_ros2/:
 
 First, remove the rviz2 node:
 
