@@ -131,7 +131,7 @@ Move the sticks - you should see velocity messages and Leo should respond.
 
 **Option 1: Set per session (temporary)**
 ```cmd
-set ROS_DOMAIN_ID=0
+set ROS_DOMAIN_ID=0 # This must be the same as your Rover's ROS_DOMAIN_ID
 set ROS_LOCALHOST_ONLY=0
 ```
 
