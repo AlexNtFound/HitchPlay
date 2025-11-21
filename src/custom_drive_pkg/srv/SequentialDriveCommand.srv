@@ -1,0 +1,7 @@
+# Request: Array of sequential drive commands
+DriveStep[] commands
+---
+# Response
+bool success
+string message
+int32 completed_steps  # Number of steps successfully completed before any failure
