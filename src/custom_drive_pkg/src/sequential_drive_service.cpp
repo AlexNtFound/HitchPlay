@@ -12,7 +12,7 @@
 #include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
 #include "tf2/LinearMath/Quaternion.h"
 #include "tf2/LinearMath/Matrix3x3.h"
-#include "custom_drive_pkg/srv/drive_command.hpp"
+#include "custom_drive_pkg/srv/sequential_drive_command.hpp"
 
 using NavigateToPose = nav2_msgs::action::NavigateToPose;
 using GoalHandleNav = rclcpp_action::ClientGoalHandle<NavigateToPose>;
@@ -32,7 +32,7 @@ public:
         
         nav_client_ = rclcpp_action::create_client<NavigateToPose>(this, "navigate_to_pose");
         
-        drive_service_ = this->create_service<custom_drive_pkg::srv::DriveCommand>(
+        drive_service_ = this->create_service<custom_drive_pkg::srv::SequentialDriveCommand>(
             "sequential_drive_command",
             std::bind(&SequentialDriveService::handle_drive, this, std::placeholders::_1, std::placeholders::_2));
         
@@ -137,8 +137,8 @@ private:
     }
     
     void handle_drive(
-        const std::shared_ptr<custom_drive_pkg::srv::DriveCommand::Request> request,
-        std::shared_ptr<custom_drive_pkg::srv::DriveCommand::Response> response)
+        const std::shared_ptr<custom_drive_pkg::srv::SequentialDriveCommand::Request> request,
+        std::shared_ptr<custom_drive_pkg::srv::SequentialDriveCommand::Response> response)
     {
         int total_commands = request->commands.size();
         RCLCPP_INFO(this->get_logger(), "════════════════════════════════════════");
@@ -212,7 +212,7 @@ private:
     std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
     std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
     rclcpp_action::Client<NavigateToPose>::SharedPtr nav_client_;
-    rclcpp::Service<custom_drive_pkg::srv::DriveCommand>::SharedPtr drive_service_;
+    rclcpp::Service<custom_drive_pkg::srv::SequentialDriveCommand>::SharedPtr drive_service_;
     std::string base_frame_;
     double goal_timeout_;
 };
