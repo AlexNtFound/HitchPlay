@@ -17,10 +17,11 @@ find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 
-# Generate service files
+# Generate message and service files
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/DriveStep.msg"
   "srv/DriveCommand.srv"
+  "srv/SequentialDriveCommand.srv"
   DEPENDENCIES geometry_msgs
 )
 
@@ -38,7 +39,7 @@ ament_target_dependencies(drive_publisher
   tf2_geometry_msgs
 )
 
-# Set dependencies for drive_service
+# Set dependencies for drive_service (original)
 ament_target_dependencies(drive_service
   rclcpp
   geometry_msgs
@@ -59,15 +60,15 @@ ament_target_dependencies(sequential_drive_service
   tf2_geometry_msgs
 )
 
-# Link custom service to drive_service
+# Link custom service to drive_service (original)
 rosidl_target_interfaces(drive_service
   ${PROJECT_NAME} "rosidl_typesupport_cpp")
 
-# Link custom interfaces to sequential_drive_service
+# Link custom interfaces to sequential_drive_service (new)
 rosidl_get_typesupport_target(cpp_typesupport_target ${PROJECT_NAME} "rosidl_typesupport_cpp")
 target_link_libraries(sequential_drive_service "${cpp_typesupport_target}")
 
-# Install both executables
+# Install all executables
 install(TARGETS
   drive_publisher
   drive_service
@@ -76,4 +77,3 @@ install(TARGETS
 )
 
 ament_package()
-
