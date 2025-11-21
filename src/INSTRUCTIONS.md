@@ -351,7 +351,7 @@ The `custom_drive_pkg` provides services for controlling the Leo Rover with rela
 
 **For complete documentation, usage examples, and API integration guide, see:**
 
-📖 **[custom_drive_pkg/README.md](/custom_drive_pkg/README.md)**
+📖 **[custom_drive_pkg/README.md](./custom_drive_pkg/README.md)**
 
 The package includes:
 - **Original Drive Service** - Single-command navigation with immediate response
