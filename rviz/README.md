@@ -7,15 +7,20 @@ This README guides you through setting up a **PC User Interface** for full remot
 - **Navigate autonomously** with return-to-base functionality
 - **Monitor** all robot systems from your computer without needing to interact directly with the rover
 
-This setup creates a complete operator station on your PC, allowing you to operate Leo Rover over the network as if you were sitting at the robot itself.
+This setup creates a complete operator station on your PC (Windows or Ubuntu), allowing you to operate Leo Rover over the network as if you were sitting at the robot itself.
 
-## Setup
+## Choose Your Platform
 
-### Remote Setup (Separate Computer)
+**Click your operating system to jump to setup instructions:**
 
-Follow these steps to visualize Leo Rover from another computer:
+- **[Ubuntu 24.04 Setup](#ubuntu-setup)** - Native ROS 2 Jazzy installation
+- **[Windows 10/11 Setup](#windows-setup)** - ROS 2 Jazzy via pixi (WSL2 not supported)
 
-#### Prerequisites
+---
+
+## Ubuntu Setup
+
+### Prerequisites
 ```bash
 # Install RViz2 and Leo Rover packages
 sudo apt update
@@ -25,14 +30,16 @@ sudo apt install ros-jazzy-rviz2 ros-jazzy-leo-description
 cd ~/ros2_ws/src
 git clone https://github.com/LeoRover/leo_common-ros2.git
 cd ~/ros2_ws && colcon build && source install/setup.bash
+
+# Install Python dependencies for Xbox controller
+pip install pygame
 ```
 
-#### Network Configuration
+### Network Configuration
 
-**On both Leo Rover and remote computer**, add to `~/.bashrc`:
+**On both Leo Rover and Ubuntu computer**, add to `~/.bashrc`:
 ```bash
 # ROS 2 Network Configuration
-export RMW_IMPLEMENTATION=rmw_fastrtps_cpp  # Use Fast DDS (ensures consistency)
 export ROS_DOMAIN_ID=0                      # Match domain ID across devices
 export ROS_LOCALHOST_ONLY=0                 # Allow network communication
 ```
@@ -42,13 +49,13 @@ Apply changes:
 source ~/.bashrc
 ```
 
-#### Verify Connection
+### Verify Connection
 ```bash
 # 1. Find Leo Rover's IP address (on Leo Rover)
 hostname -I
 # Example: 10.0.0.1
 
-# 2. On remote computer, verify network connection
+# 2. On Ubuntu computer, verify network connection
 ping <leo_rover_ip>
 
 # 3. Check if you can see Leo Rover's topics
@@ -56,78 +63,173 @@ ros2 topic list
 # Should show: /scan, /wheel_odom, /imu/data_raw, etc.
 ```
 
-#### Troubleshooting Connection
+### Xbox Controller Setup (Ubuntu)
 
-If `ros2 topic list` shows no topics:
-
-1. **Verify both machines use same middleware:**
 ```bash
-   echo $RMW_IMPLEMENTATION
-   # Should be: rmw_fastrtps_cpp on both
-```
-
-2. **Check domain ID matches:**
-```bash
-   echo $ROS_DOMAIN_ID
-   # Should be: 0 on both
-```
-
-3. **Ensure both computers are on same network/subnet**
-
-4. **Check firewall settings:**
-```bash
-   sudo ufw allow from <leo_rover_ip>
-```
-
-5. **Try Cyclone DDS (better for WiFi):**
-```bash
-   sudo apt install ros-jazzy-rmw-cyclonedds-cpp
-   export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
-   # Must change on BOTH computers
-```
-
-## Xbox Controller Setup
-
-### Prerequisites
-```bash
-# Install joystick packages
-sudo apt update
-sudo apt install ros-jazzy-joy ros-jazzy-teleop-twist-joy
-```
-
-### Connect Xbox Controller
-
-Connect the Xbox controller via USB to your remote computer (not the Leo Rover).
-
-Verify it's detected:
-```bash
+# Connect via USB, verify detection:
 ls /dev/input/js*
 # Should show: /dev/input/js0
-```
 
-### Setup Return to Base Script
-
-Make the script executable:
-
-```bash
 # Navigate to repository directory
 cd /path/to/repository
 
 # Make the script executable
-chmod +x xbox_return_to_base.py
+chmod +x xbox_leo_unified.py
+
+# Test the script
+python3 xbox_leo_unified.py
 ```
 
-### Controller Layout
+### Testing Controller (Ubuntu)
+
+Monitor velocity commands:
+```bash
+ros2 topic echo /cmd_vel
+```
+
+Move the sticks - you should see velocity messages and Leo should respond.
+
+**[Jump to Usage Instructions](#usage)**
+
+---
+
+## Windows Setup
+
+### Prerequisites
+
+1. **Install ROS 2 Jazzy using pixi**
+   
+   Follow the official Windows installation guide:
+   - https://docs.ros.org/en/jazzy/Installation/Windows-Install-Binary.html
+   
+   Quick summary:
+   ```cmd
+   # Download and install pixi
+   # Create workspace
+   md C:\pixi_ws
+   cd C:\pixi_ws
+   
+   # Initialize pixi and install ROS 2 Jazzy
+   # (Follow official docs for detailed steps)
+   ```
+
+2. **Install Python dependencies**
+   
+   Open Command Prompt and activate your pixi environment:
+   ```cmd
+   cd C:\pixi_ws
+   pixi shell
+   call C:\pixi_ws\ros2-windows\local_setup.bat
+   
+   # Install pygame for Xbox controller support
+   python -m pip install pygame
+   ```
+
+### Network Configuration
+
+**Important:** ROS 2 environment variables on Windows must be set each time you open a new Command Prompt, or added to your system environment variables.
+
+**Option 1: Set per session (temporary)**
+```cmd
+set ROS_DOMAIN_ID=0 # This must be the same as your Rover's ROS_DOMAIN_ID
+set ROS_LOCALHOST_ONLY=0
+```
+
+**Option 2: Set permanently (recommended)**
+1. Open System Properties → Environment Variables
+2. Add these User Variables:
+   - `ROS_DOMAIN_ID` = `0`
+   - `ROS_LOCALHOST_ONLY` = `0`
+
+### Verify Connection
+```cmd
+# 1. Find Leo Rover's IP address (on Leo Rover)
+# From Leo Rover terminal: hostname -I
+# Example: 10.0.0.1
+
+# 2. On Windows, verify network connection
+ping <leo_rover_ip>
+
+# 3. Activate ROS 2 and check if you can see Leo Rover's topics
+cd C:\pixi_ws
+pixi shell
+call C:\pixi_ws\ros2-windows\local_setup.bat
+ros2 topic list
+# Should show: /scan, /wheel_odom, /imu/data_raw, etc.
+```
+
+### Xbox Controller Setup (Windows)
+
+```cmd
+# Connect via USB or Bluetooth
+# Windows will automatically detect Xbox controllers
+# Verify in Device Manager under "Xbox Peripherals"
+
+# Test the script
+cd C:\pixi_ws
+pixi shell
+call C:\pixi_ws\ros2-windows\local_setup.bat
+python xbox_leo_unified.py
+```
+
+### Testing Controller (Windows)
+
+Monitor velocity commands:
+```cmd
+ros2 topic echo /cmd_vel
+```
+
+Move the sticks - you should see velocity messages and Leo should respond.
+
+**[Jump to Usage Instructions](#usage)**
+
+---
+
+## Troubleshooting Connection (Both Platforms)
+
+If `ros2 topic list` shows no topics:
+
+1. **Check domain ID matches:**
+   - Ubuntu: `echo $ROS_DOMAIN_ID`
+   - Windows: `echo %ROS_DOMAIN_ID%`
+   - Should be: `0` on both
+
+2. **Ensure both computers are on same network/subnet**
+
+3. **Check firewall settings:**
+   - Ubuntu: `sudo ufw allow from <leo_rover_ip>`
+   - Windows: Allow ROS 2 through Windows Firewall
+
+4. **Try Cyclone DDS (better for WiFi/different networks):**
+   - Ubuntu: 
+     ```bash
+     sudo apt install ros-jazzy-rmw-cyclonedds-cpp
+     export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+     ```
+   - Windows: 
+     ```cmd
+     set RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+     ```
+   - Must change on BOTH computers
+
+5. **Verify ROS_LOCALHOST_ONLY is disabled:**
+   - Should be `0` to allow network communication
+
+---
+
+## Controller Layout
 
 ```
 Xbox Controller Map:
 ┌─────────────────────────────────────┐
+│         [Nexus/Guide Button]        │
+│              ↑                      │
+│         Toggle E-Stop               │
 │                                     │
-│   [LB]                       [RB]   │  
-│    ↑                          ↑     │
-│  Hold to                   Return   │
-│  enable                    to home  │
-│  driving                            │
+│   [LB]        [Start]        [RB]   │  
+│    (unused)     ↑             ↑     │
+│            Release         Return   │
+│            E-Stop          to home  │
 │                                     │
 │   [A]               [B]             │
 │    ↑                 ↑              │
@@ -136,10 +238,10 @@ Xbox Controller Map:
 │                                     │
 │  Left Stick          Right Stick    │
 │  ┌────────┐          ┌────────┐     │
-│  │   ↑    │          │        │     │
-│  │   +    │ Forward/ │ ← + →  │ Rotate
-│  │   ↓    │ Backward │        │ only│
-│  └────────┘  only    └────────┘     │
+│  │        │          │   ↑    │     │
+│  │ ← + →  │ Rotate   │   +    │ Forward/
+│  │        │ only     │   ↓    │ Backward
+│  └────────┘          └────────┘     │
 │  (click to                          │
 │   set home)                         │
 │                                     │
@@ -154,25 +256,20 @@ Xbox Controller Map:
 ### Controller Functions
 
 **Manual Control:**
-- **LB (Hold)**: Enable movement (deadman switch)
-- **Left Stick Y-axis**: Drive forward/backward only
-- **Right Stick X-axis**: Rotate left/right only
-- **Release LB**: Immediate stop
+- **Right Stick Y-axis**: Drive forward/backward
+- **Left Stick X-axis**: Rotate left/right
+- **Nexus/Guide Button**: Toggle E-Stop (emergency stop)
+- **Start Button**: Release E-Stop
 
 **Autonomous Navigation:**
-- **RB (Press)**: Return to home position
+- **RB Button**: Return to home position
 - **Left Stick Click**: Set current location as new home
 - **B Button**: Reset home to default (map origin 0,0)
 - **A Button**: Cancel/stop active navigation
 
-### Testing Controller
+> **Safety Note:** The E-Stop function immediately stops all robot movement. Press the Nexus/Guide button to toggle E-Stop on/off, or press Start to release it.
 
-Monitor velocity commands being sent:
-```bash
-ros2 topic echo /cmd_vel
-```
-
-Hold LB and move the sticks - you should see velocity messages and Leo should respond.
+---
 
 ## Usage
 
@@ -183,7 +280,7 @@ Hold LB and move the sticks - you should see velocity messages and Leo should re
 > **💡 Quick Deploy Tip:** If you understand what the script does, you can use the automated startup script instead of running the commands below manually:
 > ```bash
 > cd ~/path/to/start_all.sh
-> .start_all.sh
+> ./start_all.sh
 > ```
 > This will launch all necessary nodes in separate terminal windows. Otherwise, follow the manual steps below:
 
@@ -218,48 +315,66 @@ source ~/leo_ws/install/setup.bash
 ros2 launch nav2_bringup navigation_launch.py params_file:=$HOME/leo_ws/src/LeoRover-SLAM-ROS2/nav2_simple.yaml slam:=true
 ```
 
-**On Your PC:**
+**On Your PC (Ubuntu):**
 ```bash
 # Terminal 1: Launch RViz visualization
 cd /path/to/repository
 ros2 run rviz2 rviz2 -d rviz/leo_rover.rviz
 
-# Terminal 2: Start Xbox controller joy node
-ros2 run joy joy_node --ros-args -p device_id:=0
-
-# Terminal 3: Start Xbox controller teleop node
-ros2 run teleop_twist_joy teleop_node --ros-args \
-  -p enable_button:=4 \
-  -p axis_linear.x:=1 \
-  -p axis_angular.yaw:=3 \
-  -p scale_linear.x:=0.5 \
-  -p scale_angular.yaw:=1.0
-
-# Terminal 4: Start return to base script
-python3 /path/to/repository/xbox_return_to_base.py
+# Terminal 2: Start Xbox controller with nav script
+python3 /path/to/repository/xbox_leo_unified.py
 ```
 
-**You now have a complete operator station:** RViz shows you what Leo sees, Xbox controller lets you drive manually, and autonomous return-to-base functionality!
+**On Your PC (Windows):**
+```cmd
+REM Terminal 1: Setup environment and launch RViz
+cd C:\pixi_ws
+pixi shell
+call C:\pixi_ws\ros2-windows\local_setup.bat
+cd C:\path\to\repository
+ros2 run rviz2 rviz2 -d rviz/leo_rover.rviz
+
+REM Terminal 2: Setup environment and start Xbox controller
+cd C:\pixi_ws
+pixi shell
+call C:\pixi_ws\ros2-windows\local_setup.bat
+cd C:\path\to\repository
+python xbox_leo_unified.py
+```
+
+**You now have a complete operator station:** RViz shows you what Leo sees, Xbox controller lets you drive manually with E-Stop safety, and autonomous return-to-base functionality!
 
 ### Typical Workflow
 
-1. **Manual Exploration**
-   - Hold LB and use sticks to drive around
-   - Build map using SLAM
+1. **Start Operation**
+   - Ensure E-Stop is released (press Start button if needed)
+   - Confirm in terminal: "E-STOP RELEASED"
+
+2. **Manual Exploration**
+   - Use right stick to drive forward/backward
+   - Use left stick to rotate
+   - Build map using SLAM visible in RViz
    
-2. **Set Home Location**
+3. **Set Home Location**
    - Drive to desired home/base location
    - Click left stick to set as home
+   - Confirm in terminal: "✓ Home position updated"
    
-3. **Explore Further**
+4. **Explore Further**
    - Drive away from home base
    - Use RViz to monitor map building
+   - Monitor robot position in real-time
    
-4. **Return Home**
+5. **Return Home**
    - Press RB to autonomously navigate back
+   - Watch robot follow planned path in RViz
    - Press A if you need to cancel navigation
    
-5. **Reset Home (if needed)**
+6. **Emergency Stop**
+   - Press Nexus/Guide button for immediate E-Stop
+   - Press Start or Nexus again to release
+   
+7. **Reset Home (if needed)**
    - Press B to reset home to map origin (0,0)
 
 ### What's Included
@@ -283,32 +398,52 @@ python3 /path/to/repository/xbox_return_to_base.py
 2. Make your changes (add/remove displays, adjust settings)
 3. **File → Save Config** (Ctrl+S)
 
+---
+
 ## Troubleshooting
 
 | Issue | Solution |
 |-------|----------|
+| **General Issues** | |
 | "No messages received" on displays | Verify Leo Rover nodes are running: `ros2 topic list` |
 | Transform (TF) errors | Check TF tree: `ros2 run tf2_ros tf2_echo odom base_link` |
 | Robot model not visible (remote) | Install `ros-jazzy-leo-description` on remote computer |
-| RViz won't load config | Verify file exists: `ls -lh rviz/leo_rover.rviz` |
-| Can't see topics (remote) | See [Troubleshooting Connection](#troubleshooting-connection) |
-| Poor WiFi performance | Try Cyclone DDS instead of Fast DDS (change `RMW_IMPLEMENTATION`) |
-| Xbox controller not detected | Check: `ls /dev/input/js*` and install `joystick` package |
+| RViz won't load config | Verify file exists: `ls -lh rviz/leo_rover.rviz` (Ubuntu) or `dir rviz\leo_rover.rviz` (Windows) |
+| Can't see topics (remote) | See [Troubleshooting Connection](#troubleshooting-connection-both-platforms) |
+| Poor WiFi performance | Try Cyclone DDS: `export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp` (must set on BOTH devices) |
+| **Xbox Controller Issues** | |
+| Xbox controller not detected | Ubuntu: Check `ls /dev/input/js*` and install `joystick` package<br>Windows: Check Device Manager under "Xbox Peripherals" |
 | Controller moves but Leo doesn't | Verify `/cmd_vel` is being published: `ros2 topic echo /cmd_vel` |
-| Permission denied on controller | Add user to input group: `sudo usermod -a -G input $USER` (logout/login) |
-| Wrong stick controls movement | Verify axis mapping: `ros2 topic echo /joy` and check axes values |
+| Wrong stick controls movement | Verify in script: Right Stick Y = forward/back, Left Stick X = rotation |
+| pygame import error | Ubuntu: `pip install pygame`<br>Windows: `python -m pip install pygame` in pixi shell |
+| "No Xbox controller found" error | Verify controller is connected and detected by OS before starting script |
+| **Navigation Issues** | |
 | Return to base doesn't work | Ensure SLAM and Nav2 are running; check `/goal_pose` topic |
-| Can't cancel navigation | Press A button; check script is running: `ps aux | grep xbox_return` |
+| Can't cancel navigation | Press A button; verify script running: `ps aux \| grep xbox` (Ubuntu) or Task Manager (Windows) |
+| Home position not updating | Check TF transforms available: `ros2 topic echo /tf` |
+| Navigation goals ignored | Verify Nav2 is running and map is available in RViz |
+| **Windows-Specific Issues** | |
+| ROS 2 commands not found | Ensure pixi shell is activated and `local_setup.bat` is called |
+| Environment variables not set | Set permanently in System Properties or set per session before running |
+| Firewall blocking connection | Allow Python and ROS 2 through Windows Firewall |
+| **Ubuntu-Specific Issues** | |
+| Permission denied on controller | Add user to input group: `sudo usermod -a -G input $USER` (logout/login) |
+| Script not executable | Make executable: `chmod +x xbox_leo_unified.py` |
+
+---
 
 ## Notes
 
-- **Both computers must use the same RMW implementation** (`rmw_fastrtps_cpp` or `rmw_cyclonedds_cpp`)
+- **Both computers must use the same ROS_DOMAIN_ID** (default: `0`)
 - Ensure both Leo Rover and remote computer use ROS 2 Jazzy
 - Configuration is version-controlled for team consistency
 - For custom configs, use descriptive names (e.g., `leo_slam_debug.rviz`)
 - Xbox controller connects to the remote computer, not the Leo Rover
-- Always hold the deadman switch (LB) when operating the rover for safety
-- This setup enables full remote operation: visualization + control from a single PC workstation
+- The unified script (`xbox_leo_unified.py`) works on both Windows and Ubuntu
+- E-Stop feature provides immediate safety shutdown
 - **Return to base uses `/map` frame** - home location is fixed in the map coordinate system
 - Default home is map origin (0,0) where SLAM was initialized
 - Custom home locations persist until reset with B button or script restart
+- **Windows users:** Always activate pixi shell and source ROS 2 setup before running any ROS 2 commands
+- **Ubuntu users:** Source ROS 2 setup in your `~/.bashrc` for convenience
+- **RMW Implementation:** By default, ROS 2 will use the available middleware. Only set `RMW_IMPLEMENTATION` if you experience connection issues (try Cyclone DDS)
