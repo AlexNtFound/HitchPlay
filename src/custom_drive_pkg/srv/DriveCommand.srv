@@ -1,7 +1,7 @@
-# Request: Array of sequential drive commands
-DriveStep[] commands
+# Request
+float64 forward  # meters
+float64 rotate  # degrees
 ---
 # Response
 bool success
 string message
-int32 completed_steps  # Number of steps successfully completed before any failure
