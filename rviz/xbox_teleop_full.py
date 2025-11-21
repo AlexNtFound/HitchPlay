@@ -350,11 +350,10 @@ class XboxLeoTeleopNav(Node):
 
 def main(args=None):
     # Set ROS domain ID (adjust as needed for your rover)
-    os.environ['ROS_DOMAIN_ID'] = '42'
+    os.environ['ROS_DOMAIN_ID'] = '0'
     
-    # Uncomment if you need to force TCP for network issues
-    # os.environ['RMW_IMPLEMENTATION'] = 'rmw_fastrtps_cpp'
-    # os.environ['FASTRTPS_DEFAULT_PROFILES_FILE'] = '/path/to/tcp_no_multicast.xml'
+    # Uncomment if you need to force specific middleware for network issues
+    # os.environ['RMW_IMPLEMENTATION'] = 'rmw_cyclonedds_cpp'  # Better for WiFi
 
     rclpy.init(args=args)
 
