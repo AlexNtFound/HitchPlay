@@ -1,8 +1,6 @@
 #include <memory>
 #include <string>
 #include <cmath>
-#include <thread>
-#include <chrono>
 
 #include "rclcpp/rclcpp.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
@@ -51,6 +49,7 @@ private:
             return true;
         }
         catch (tf2::TransformException &ex) {
+            RCLCPP_WARN(this->get_logger(), "TF lookup failed: %s", ex.what());
             return false;
         }
     }
@@ -86,6 +85,7 @@ private:
         if (!get_current_pose(current)) {
             response->success = false;
             response->message = "Failed to get pose - check SLAM/TF";
+            RCLCPP_ERROR(this->get_logger(), "✗ Failed to get current pose");
             return;
         }
         
@@ -99,11 +99,7 @@ private:
         goal.pose.position.z = current.pose.position.z;
         goal.pose.orientation = yaw_to_quat(yaw + rotate_rad);
         
-        // Cancel previous
-        goal_pub_->publish(current);
-        std::this_thread::sleep_for(std::chrono::milliseconds(300));
-        
-        // Publish goal
+        // Publish goal directly - Nav2 handles goal transitions automatically
         goal_pub_->publish(goal);
         
         RCLCPP_INFO(this->get_logger(), "✓ Goal: (%.2f, %.2f) yaw: %.1f°", 
@@ -128,4 +124,3 @@ int main(int argc, char ** argv)
     rclcpp::shutdown();
     return 0;
 }
-
