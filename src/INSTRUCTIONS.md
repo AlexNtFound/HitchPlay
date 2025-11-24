@@ -214,7 +214,7 @@ Before launching sllidar, we need to customize the sllidar's scan frequency, and
 First, remove the rviz2 node:
 
 ```python
-Note (
+Node (
    package = 'rviz2',
    executable='rviz2',
    name='rviz2',
