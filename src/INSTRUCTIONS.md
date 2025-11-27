@@ -214,7 +214,7 @@ Before launching sllidar, we need to customize the sllidar's scan frequency, and
 First, remove the rviz2 node:
 
 ```python
-Note (
+Node (
    package = 'rviz2',
    executable='rviz2',
    name='rviz2',
@@ -291,19 +291,33 @@ sudo nano /etc/systemd/system/leo-startup.service
 
 ```ini
 [Unit]
-Description=Leo Rover Startup Service
+Description=Leo Rover Auto-Start
 After=network.target
-Wants=network-online.target
 
 [Service]
 Type=simple
 User=pi
 WorkingDirectory=/home/pi/leo_ws
+
+# Wait for system to be ready
+ExecStartPre=/bin/sleep 10
+
+# Run the script
 ExecStart=/bin/bash /home/pi/leo_ws/src/start_all.sh
+
+# Reboot on failure
 Restart=on-failure
-RestartSec=10
+RestartSec=15
+StartLimitBurst=3
+StartLimitIntervalSec=300
+StartLimitAction=reboot
+
+# Logging
 StandardOutput=journal
 StandardError=journal
+
+# Give it time to start
+TimeoutStartSec=180
 
 [Install]
 WantedBy=multi-user.target
