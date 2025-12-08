@@ -319,7 +319,7 @@ ros2 launch nav2_bringup navigation_launch.py params_file:=$HOME/leo_ws/src/LeoR
 ```bash
 # Terminal 1: Launch RViz visualization
 cd /path/to/repository
-ros2 run rviz2 rviz2 -d rviz/leo_rover.rviz
+ros2 run rviz2 rviz2 -d example/leo_rover.rviz
 
 # Terminal 2: Start Xbox controller with nav script
 python3 /path/to/repository/xbox_leo_unified.py
@@ -332,7 +332,7 @@ cd C:\pixi_ws
 pixi shell
 call C:\pixi_ws\ros2-windows\local_setup.bat
 cd C:\path\to\repository
-ros2 run rviz2 rviz2 -d rviz/leo_rover.rviz
+ros2 run rviz2 rviz2 -d example/leo_rover.rviz
 
 REM Terminal 2: Setup environment and start Xbox controller
 cd C:\pixi_ws
@@ -408,7 +408,7 @@ python xbox_leo_unified.py
 | "No messages received" on displays | Verify Leo Rover nodes are running: `ros2 topic list` |
 | Transform (TF) errors | Check TF tree: `ros2 run tf2_ros tf2_echo odom base_link` |
 | Robot model not visible (remote) | Install `ros-jazzy-leo-description` on remote computer |
-| RViz won't load config | Verify file exists: `ls -lh rviz/leo_rover.rviz` (Ubuntu) or `dir rviz\leo_rover.rviz` (Windows) |
+| RViz won't load config | Verify file exists: `ls -lh example/leo_rover.rviz` (Ubuntu) or `dir example\leo_rover.rviz` (Windows) |
 | Can't see topics (remote) | See [Troubleshooting Connection](#troubleshooting-connection-both-platforms) |
 | Poor WiFi performance | Try Cyclone DDS: `export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp` (must set on BOTH devices) |
 | **Xbox Controller Issues** | |
