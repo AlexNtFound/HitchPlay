@@ -237,7 +237,7 @@ ros2 launch sllidar_ros2 view_sllidar_a2m12_nogui_launch.py
    
 ```bash
 source /opt/ros/jazzy/setup.bash
-ros2 run tf2_ros static_transform_publisher --x 0.03 --y 0 --z 0.08 --yaw 3.14159 --pitch 0 --roll 0 --frame-id base_link --child-frame-id laser
+ros2 run tf2_ros static_transform_publisher --x 0.03 --y 0 --z 0.02 --yaw 3.14159 --pitch 0 --roll 0 --frame-id base_link --child-frame-id laser
 ```
 
 4. Start RVIZ
@@ -252,11 +252,6 @@ ros2 launch leo_viz rviz.launch.xml
 ```bash
 source /opt/ros/jazzy/setup.bash
 ros2 launch slam_toolbox online_async_launch.py use_sim_time:=false
-```
-
-```bash
-source /opt/ros/jazzy/setup.bash
-ros2 launch robot_localization ekf.launch.py params_file:=$HOME/leo_ws/src/LeoRover-SLAM-ROS2/ekf.yaml
 ```
 
 ```bash
