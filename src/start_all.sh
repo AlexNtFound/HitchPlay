@@ -253,7 +253,7 @@ fi
 # API & Communication
 # =============================================================================
 launch_and_wait "FastAPI server" \
-    'cd ~/api-server; python3 main.py' \
+    'cd ~/projects/api-server; python3 main.py' \
     "Uvicorn running on" \
     30 && FASTAPI_OK=true
 
