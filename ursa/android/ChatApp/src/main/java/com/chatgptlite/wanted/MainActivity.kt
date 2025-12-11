@@ -2,10 +2,12 @@ package com.chatgptlite.wanted
 
 //import com.chatgptlite.wanted.ui.conversations.components.startBackgroundRecorder
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.system.Os
@@ -42,6 +44,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.material.icons.filled.ArrowBack
 
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
@@ -58,12 +62,8 @@ import com.chatgptlite.wanted.services.getFilePath
 import com.chatgptlite.wanted.ui.NavRoute
 import com.chatgptlite.wanted.ui.settings.advance.AdvanceScreen
 import com.chatgptlite.wanted.ui.settings.advance.AdvanceViewModel
-import com.chatgptlite.wanted.ui.settings.occupancy.Occupancy
-import com.chatgptlite.wanted.ui.settings.occupancy.OccupancyViewModel
 import com.chatgptlite.wanted.ui.settings.rover.RoverSettingsViewModel
 import com.chatgptlite.wanted.ui.settings.rover.SettingsScreen
-import com.chatgptlite.wanted.ui.settings.rover.TelemetryScreen
-import com.chatgptlite.wanted.ui.settings.rover.TelemetryViewModel
 import com.chatgptlite.wanted.ui.settings.terminal.TerminalScreen
 import com.chatgptlite.wanted.ui.settings.terminal.TerminalViewModel
 import com.chatgptlite.wanted.ui.settings.controller.VideoCamSettingsViewModel
@@ -89,11 +89,13 @@ class MainActivity : ComponentActivity() {
         init {
             System.loadLibrary("chatapp")
         }
+        private const val REQUEST_RECORD_AUDIO = 100
     }
 
     private val mainViewModel: MainViewModel by viewModels()
     private val TAG = "MainActivity"
     private val micVisibleState = mutableStateOf(false)
+    private lateinit var voiceWakeupManager: VoiceWakeupManager
 
     var text = mutableStateOf("")
     var genieResponse = mutableStateOf("")
@@ -285,6 +287,7 @@ class MainActivity : ComponentActivity() {
     @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Log.d(TAG, "Device ABI: ${Build.SUPPORTED_ABIS.joinToString()}")
 
         WindowCompat.setDecorFitsSystemWindows(window, true)
 
@@ -540,7 +543,7 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
 
-                            // 🔥 MicPopup is placed OUTSIDE Scaffold, drawn on top
+                            // MicPopup is placed OUTSIDE Scaffold, drawn on top
                             if (micVisibleState.value) {
                                 MicPopup(
                                     text = text,
@@ -555,6 +558,8 @@ class MainActivity : ComponentActivity() {
                                         micVisibleState.value = false
                                         isForegroundRecording.value = false
                                         updateForegroundRecordingSignal(false)
+                                        // Resume wake word detection
+                                        voiceWakeupManager.resumeWakeWordDetection()
                                     },
                                     onCancel = {
                                         text.value = ""
@@ -562,6 +567,8 @@ class MainActivity : ComponentActivity() {
                                         micVisibleState.value = false
                                         isForegroundRecording.value = false
                                         updateForegroundRecordingSignal(false)
+                                        // Resume wake word detection
+                                        voiceWakeupManager.resumeWakeWordDetection()
                                     }
                                 )
                             }
@@ -573,9 +580,60 @@ class MainActivity : ComponentActivity() {
             }
         )
 
+        // Initialize voice wakeup manager with callback
+        voiceWakeupManager = VoiceWakeupManager(this) {
+            // Callback when wake word is detected - trigger startRecorder()
+            Log.d(TAG, "Wake word callback triggered, starting recorder...")
+            startRecorder()
+        }
+        checkAndRequestPermissions()
     }
 
+    private fun checkAndRequestPermissions() {
+        if (ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.RECORD_AUDIO
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(Manifest.permission.RECORD_AUDIO),
+                REQUEST_RECORD_AUDIO
+            )
+        } else {
+            startVoiceWakeup()
+        }
+    }
 
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+
+        if (requestCode == REQUEST_RECORD_AUDIO) {
+            if (grantResults.isNotEmpty() &&
+                grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                startVoiceWakeup()
+            } else {
+                Toast.makeText(
+                    this,
+                    "Microphone permission required for voice wakeup",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+    }
+
+    private fun startVoiceWakeup() {
+        voiceWakeupManager.startWakeWordDetection()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        voiceWakeupManager.stop()
+    }
 }
 
 @Composable
@@ -902,4 +960,3 @@ private fun ListeningAnimation(
             .background(Color.Transparent)
     )
 }
-
