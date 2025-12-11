@@ -192,6 +192,15 @@ Comment out the following lines
 -->
 ```
 
+Change the rosbridge server setting
+```bash
+sudo nano /opt/ros/jazzy/share/rosbridge_server/launch/rosbridge_websocket_launch.xml
+```
+change the delay between messages from 0 to 0.0:
+```bash
+<arg name="delay_between_messages" default="0.0" />
+```
+
 The change will take effect after reboot
 
 ## 4. Launch the ROS nodes and API server
