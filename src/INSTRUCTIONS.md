@@ -393,3 +393,15 @@ The package includes:
 
 Both services are built automatically with step 3.2 above and can be started with `start_all.sh` or individually as documented in the README.
 
+## 7. Autonomous Exploration with explore_lite
+
+The `explore_lite` package (from `m-explore-ros2`) provides frontier-based autonomous exploration. When running, the robot will automatically explore unknown areas until no more frontiers are found.
+
+Using the launch file:
+
+```bash
+ros2 launch explore_lite explore.launch.py
+```
+
+
+**Note:** For autonomous exploration, ensure that Nav2 and SLAM Toolbox are fully initialized before starting explore_lite. You may need to add a delay or health check to ensure all dependencies are ready.
