@@ -115,13 +115,13 @@ echo "source ~/ws_lidar/install/setup.bash" >> ~/.bashrc
 # Update package lists
 sudo apt update
 # Install Nav2
-sudo apt install ros-$ROS_DISTRO-navigation2 ros-$ROS_DISTRO-nav2-bringup
+sudo apt install ros-jazzy-navigation2 ros-jazzy-nav2-bringup
 # Install additional Nav2 packages (optional but useful)
-sudo apt install ros-$ROS_DISTRO-nav2-*
+sudo apt install ros-jazzy-nav2-*
 # Install dependencies
-sudo apt install ros-$ROS_DISTRO-robot-localization
-sudo apt install ros-$ROS_DISTRO-joint-state-publisher
-sudo apt install ros-$ROS_DISTRO-robot-state-publisher
+sudo apt install ros-jazzy-robot-localization
+sudo apt install ros-jazzy-joint-state-publisher
+sudo apt install ros-jazzy-robot-state-publisher
 ```
 
 SLAM Toolbox should be installed by default together with ROS2 Jazzy and Nav2 above. In case it is not installed, try
@@ -192,6 +192,15 @@ Comment out the following lines
 -->
 ```
 
+Change the rosbridge server setting
+```bash
+sudo nano /opt/ros/jazzy/share/rosbridge_server/launch/rosbridge_websocket_launch.xml
+```
+change the delay between messages from 0 to 0.0:
+```bash
+<arg name="delay_between_messages" default="0.0" />
+```
+
 The change will take effect after reboot
 
 ## 4. Launch the ROS nodes and API server
@@ -209,12 +218,12 @@ ros2 run leo_bringup leo_system
    
 2. Start Sllidar
 
-Before launching sllidar, we need to customize the sllidar's scan frequency, and we want to disable the RViz to conserve CPU cycle. To do that, save a new view_sllidar_a2m12_nogui_launch.py by changing the original launch file view_sllidar_a2m12_launch.py:
+Before launching sllidar, we need to customize the sllidar's scan frequency, and we want to disable the RViz to conserve CPU cycle. To do that, create a new view_sllidar_a2m12_nogui_launch.py by copying the original launch file view_sllidar_a2m12_launch.py from ~/ws_lidar/src/sllidar_ros2/launch/ to ~/ws_lidar/install/sllidar_ros2/share/sllidar_ros2/:
 
 First, remove the rviz2 node:
 
 ```python
-Note (
+Node (
    package = 'rviz2',
    executable='rviz2',
    name='rviz2',
@@ -237,7 +246,7 @@ ros2 launch sllidar_ros2 view_sllidar_a2m12_nogui_launch.py
    
 ```bash
 source /opt/ros/jazzy/setup.bash
-ros2 run tf2_ros static_transform_publisher --x 0.03 --y 0 --z 0.08 --yaw 3.14159 --pitch 0 --roll 0 --frame-id base_link --child-frame-id laser
+ros2 run tf2_ros static_transform_publisher --x 0.03 --y 0 --z 0.02 --yaw 3.14159 --pitch 0 --roll 0 --frame-id base_link --child-frame-id laser
 ```
 
 4. Start RVIZ
@@ -252,11 +261,6 @@ ros2 launch leo_viz rviz.launch.xml
 ```bash
 source /opt/ros/jazzy/setup.bash
 ros2 launch slam_toolbox online_async_launch.py use_sim_time:=false
-```
-
-```bash
-source /opt/ros/jazzy/setup.bash
-ros2 launch robot_localization ekf.launch.py params_file:=$HOME/leo_ws/src/LeoRover-SLAM-ROS2/ekf.yaml
 ```
 
 ```bash
@@ -291,19 +295,33 @@ sudo nano /etc/systemd/system/leo-startup.service
 
 ```ini
 [Unit]
-Description=Leo Rover Startup Service
+Description=Leo Rover Auto-Start
 After=network.target
-Wants=network-online.target
 
 [Service]
 Type=simple
 User=pi
 WorkingDirectory=/home/pi/leo_ws
+
+# Wait for system to be ready
+ExecStartPre=/bin/sleep 10
+
+# Run the script
 ExecStart=/bin/bash /home/pi/leo_ws/src/start_all.sh
+
+# Reboot on failure
 Restart=on-failure
-RestartSec=10
+RestartSec=15
+StartLimitBurst=3
+StartLimitIntervalSec=300
+StartLimitAction=reboot
+
+# Logging
 StandardOutput=journal
 StandardError=journal
+
+# Give it time to start
+TimeoutStartSec=180
 
 [Install]
 WantedBy=multi-user.target
