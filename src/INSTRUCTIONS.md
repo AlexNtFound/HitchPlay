@@ -41,9 +41,15 @@ The 2025 version of Leo Rover runs on Raspberry Pi5 with Ubuntu 24.04 and ROS2 J
 
 If flashing a new Leo OS to a Pi5 is needed, please follow the [LeoRover Ros2 (experimental) guide here](https://docs.fictionlab.pl/leo-rover/advanced-guides/ros-2-support). It is strongly recommended to launch the Leo OS (a custome Ubuntu 24.04) from a USB SSD connecting to the USB 3.1 port, but one can also use a microSD.
 
+In case the user prefers a different default WiFi name, especially there are multiple Leo Rovers in the same space, the default WiFi name can be reset by editing hostapd.conf:
+```bash
+sudo nano /etc/hostapd/hostapd.conf
+```
+then finding and editing the ssid entry as: ssid=LeoRover-XXXX, where XXXX is the customized WiFi name that should be unique to each Leo Rover. Restart the system to make the change to take effect.
+
 ### Ubuntu Installation for Pi5:
 
-1. Sync computer clock
+2. Sync computer clock
 
 Before update the system, we need to fix the Pi 5 clock to establish secure connection, since Pi 5 does not have a hardware clock.
 First time, we need to manually hard reset the system clock to the current local time (please replace with the correct present local time):
