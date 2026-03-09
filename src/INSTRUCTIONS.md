@@ -149,18 +149,6 @@ rosdep install --from-paths src -y --ignore-src
 colcon build --symlink-install
 ```
 
-**3.3** Install the ROS2 API server
-
-We first install an open-source API server:
-
-```bash
-cd ~/projects
-git clone -b alex_cmd https://gitlab.com/roar-gokart/api-server.git
-cd api-server/
-sudo apt install python3-fastapi
-python3 main.py
-```
-
 Next, because Leo OS launches a default rosbridge_websocket, we need to remove it from startup. Specifically, edit:
 
 ```bash
@@ -318,11 +306,11 @@ source /opt/ros/jazzy/setup.bash
 ros2 launch rosbridge_server rosbridge_websocket_launch.xml
 ```
 
-**5.7** Start web video server (camera streaming)
+**5.7** Start API server
 
 ```bash
 source /opt/ros/jazzy/setup.bash
-ros2 run web_video_server web_video_server
+python3 ~/leo_ws/src/api-server/main.py
 ```
 
 **5.8** Start RViz (optional, on a remote PC only)
