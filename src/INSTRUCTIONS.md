@@ -33,7 +33,7 @@ First we need to examine the condition of the onboard Pi5 board and its attachme
 
 ### Software Scheme
 
-The 2025 version of Leo Rover runs on Raspberry Pi5 with Ubuntu 24.04 and ROS2 Jazzy. The rover connection to external devices is permitted through its onboard wifi chip. Although the onboard wifi does not have to be connected to another wifi network/the internet, connection to the rover wifi is necessary to ssh into either computer and transmit information via the api server/websockets.
+The 2026 version of Leo Rover runs on Raspberry Pi5 with Ubuntu 24.04 and ROS2 Jazzy. The rover connection to external devices is permitted through its onboard wifi chip. Although the onboard wifi does not have to be connected to another wifi network/the internet, connection to the rover wifi is necessary to ssh into either computer and transmit information via the api server/websockets.
 
 - The default Leo Rover WiFi password: password
 - The default Pi5 login through the Leo Rover WiFi is: pi@10.0.0.1, Password: raspberry
@@ -110,7 +110,7 @@ echo "source ~/ws_lidar/install/setup.bash" >> ~/.bashrc
 
 **Step 5. Install SLAM Toolbox**
 
-> **Architecture Note:** In this configuration, the Pi5 runs only SLAM for localization and mapping. Navigation commands (go-to-coordinate, go-home) are handled by a lightweight `simple_nav_node` that uses proportional control with SLAM TF data. This approach keeps CPU usage under 60%, leaving headroom for stability.
+> **Architecture Note:** The Pi5 runs SLAM for localization and `simple_nav_node` for navigation with LiDAR-based obstacle avoidance. The system operates in three navigation modes: **slam** (SLAM TF available + flat ground → coordinate nav), **dead_reckon** (SLAM unavailable or tilted → EKF-only timed drive), and **line_follow** (RT trigger → camera steering). EKF (odom→base_footprint) fusing IMU + wheel encoders runs continuously in all modes. The `slope_pilot_node` detects white center lines on the floor for camera steering. The `tilt_gate_node` monitors IMU tilt and publishes `/scan_gated` for future SLAM integration.
 
 ```bash
 sudo apt update
@@ -118,7 +118,10 @@ sudo apt install ros-jazzy-slam-toolbox
 sudo apt install ros-jazzy-robot-localization
 sudo apt install ros-jazzy-joint-state-publisher
 sudo apt install ros-jazzy-robot-state-publisher
+sudo apt install python3-opencv ros-jazzy-cv-bridge
 ```
+
+> **Required packages:** `python3-opencv` and `ros-jazzy-cv-bridge` are mandatory for `slope_pilot_node`. The node will fail to start without them. Camera **hardware** is optional — if no camera is connected, the node automatically falls back to IMU-only tilt detection (flat/dead_reckon modes, no line following).
 
 **Step 6. Update Leo board firmware**
 
@@ -242,12 +245,11 @@ The entire startup sequence has been coded conveniently in a script file `start_
 
 The following is a more detailed breakdown of all the services:
 
-**5.1** Start Leo system
+**5.1** Leo system (managed by systemd)
 
-```bash
-source /opt/ros/jazzy/setup.bash
-ros2 run leo_bringup leo_system
-```
+The Leo base system (`leo_system`, `odom_filter`, `imu_filter`, `robot_state_publisher`, `firmware_message_converter`) is started automatically by the `ros-nodes.service` systemd user unit at boot. `start_all.sh` detects this and skips launching a duplicate.
+
+> **WARNING:** Never manually kill these systemd-managed services (`pkill leo_system`, `pkill odom_filter`, etc.). They will NOT restart and the rover will lose its TF chain. If they need restarting: `systemctl --user restart ros-nodes.service`
 
 **5.2** Start Sllidar (at 5 Hz, no GUI)
 
@@ -263,23 +265,47 @@ source /opt/ros/jazzy/setup.bash
 ros2 run tf2_ros static_transform_publisher --x 0.03 --y 0 --z 0.02 --yaw 3.14159 --pitch 0 --roll 0 --frame-id base_link --child-frame-id laser
 ```
 
-**5.4** Start SLAM Toolbox
+**5.4** Start the Tilt Gate Node (slope monitoring)
+
+The tilt gate node monitors IMU roll/pitch and publishes gated scans to `/scan_gated`. Currently SLAM reads raw `/scan` directly (the gated topic is available for future integration). The tilt detection also coordinates with `slope_pilot_node` to trigger slope modes.
+
+```bash
+source /opt/ros/jazzy/setup.bash
+python3 ~/leo_ws/src/tilt_gate_node.py
+```
+
+**5.5** Start the Slope Pilot Node (camera line detection)
+
+The slope pilot node uses the camera to detect white center lines on the floor. It publishes line detection status on `/slope_mode` and steering angle on `/line_steer`. The navigation mode is NOT controlled by slope_pilot_node — `simple_nav_node` determines mode internally. Line following is triggered by the user via the RT trigger on the Xbox controller.
+
+> **Camera hardware is optional.** If no camera is publishing on `/camera/image_rect_color`, the node operates in IMU-only mode: it publishes `flat` on level ground and `dead_reckon` on slopes (no `line_follow`). The camera is re-checked every 5 seconds, so hot-plugging a camera during operation is supported. If `slope_pilot_node` fails entirely, `simple_nav_node` has its own IMU fallback.
+
+```bash
+source /opt/ros/jazzy/setup.bash
+python3 ~/leo_ws/src/slope_pilot_node.py
+```
+
+> **Tuning:** If line detection is unreliable, adjust `WHITE_V_MIN` (brightness threshold, default 180), `MIN_LINE_AREA` (minimum blob size, default 200), and `KP_STEER` (steering aggressiveness, default 2.0) in `slope_pilot_node.py`.
+
+**5.6** Start SLAM Toolbox
+
+SLAM uses default configuration (subscribes to `/scan`, `base_frame: base_footprint`):
 
 ```bash
 source /opt/ros/jazzy/setup.bash
 ros2 launch slam_toolbox online_async_launch.py use_sim_time:=false
 ```
 
-**5.5** Start the Simple Navigation Node
+**5.7** Start the Simple Navigation Node
 
-The simple navigation node provides go-to-coordinate and go-home functionality using proportional control with SLAM TF data. It is a lightweight (~2% CPU) Python node with no external dependencies beyond the core ROS 2 packages already installed.
+The simple navigation node is the central velocity gatekeeper for the rover. It manages three navigation modes (slam/dead_reckon/line_follow), provides go-to-coordinate and go-home functionality, LiDAR-based obstacle avoidance, and the Pi5-side waypoint replay engine with pure pursuit path following. All velocity commands (from teleop, navigation, and waypoint replay) pass through obstacle filtering before reaching `/cmd_vel`. The Xbox/keyboard controller publishes to `/cmd_vel_teleop`, which `simple_nav_node` filters and forwards to `/cmd_vel`. The node publishes the current mode on `/nav_mode`. Waypoint replay commands arrive on `/waypoint_replay` as JSON — the full waypoint list is sent once from the Windows side, then executed continuously on Pi5. Line follow commands arrive on `/line_follow_cmd` (RT trigger on Xbox).
 
 ```bash
 source /opt/ros/jazzy/setup.bash
 python3 ~/leo_ws/src/simple_nav_node.py
 ```
 
-> **WARNING:** The simple navigation node does **not** provide obstacle avoidance. The rover will drive in a straight line toward the goal. Use in open spaces only.
+> **Note:** Obstacle avoidance slows and stops the rover when LiDAR detects obstacles in the direction of travel. Turning is always allowed. Navigation goals use straight-line paths (no path planning around obstacles).
 
 Sending navigation commands from the command line:
 
@@ -299,21 +325,25 @@ ros2 topic pub --once /cancel_nav std_msgs/msg/Empty "{}"
 ros2 topic echo /nav_status
 ```
 
-**5.6** Start the customized websocket
+**5.8** Start the customized websocket
 
 ```bash
 source /opt/ros/jazzy/setup.bash
 ros2 launch rosbridge_server rosbridge_websocket_launch.xml
 ```
 
-**5.7** Start API server
+**5.9** Start API server
 
 ```bash
 source /opt/ros/jazzy/setup.bash
 python3 ~/leo_ws/src/api-server/main.py
 ```
 
-**5.8** Start RViz (optional, on a remote PC only)
+**5.10** Web video server (camera streaming)
+
+> **Note:** The web video server is launched automatically by `leo_bringup.launch.xml` (systemd). `start_all.sh` detects this and does not launch a duplicate. No manual action needed.
+
+**5.11** Start RViz (optional, on a remote PC only)
 
 > **Note:** Do not run RViz on the Pi5 as it consumes significant CPU and GPU resources. Run it on a remote PC connected to the same ROS2 network.
 
@@ -328,16 +358,18 @@ With this configuration, the Pi5 should maintain a load average of 2.0 to 3.0 on
 
 | Process | Approx CPU | Purpose |
 |---------|:----------:|---------|
-| leo_system + firmware | ~10% | Motor control, hardware I/O |
-| sllidar_node (5 Hz) | ~10% | LiDAR driver |
-| odom_filter | ~10% | EKF odometry fusion |
+| leo_system + firmware | ~10% | Motor control, hardware I/O (systemd) |
+| sllidar_node (~13 Hz) | ~10% | LiDAR driver |
+| odom_filter | ~10% | EKF odometry fusion (systemd) |
 | slam_toolbox | ~15% | Localization and mapping |
-| robot_state_publisher | ~2% | TF tree for URDF links |
+| tilt_gate_node | ~1% | IMU tilt monitoring, /scan_gated publisher |
+| slope_pilot_node | ~1% | Camera line detection (lazy: 0% flat, ~3% on slopes) |
+| robot_state_publisher | ~2% | TF tree for URDF links (systemd) |
 | static_transform_publisher | ~1% | base_link to laser TF |
-| simple_nav_node | ~2% | Go-to-coordinate controller |
+| simple_nav_node | ~5% | Navigation + obstacle avoidance + 3-mode + replay |
 | rosbridge_websocket | ~5% | WebSocket bridge for API/web clients |
-| web_video_server | ~5% | Camera streaming |
-| **Total** | **~60%** | **Leaves headroom for stability** |
+| web_video_server | ~5% | Camera streaming (systemd) |
+| **Total** | **~65%** | **Leaves headroom for stability** |
 
 ### Verifying SLAM Health
 
@@ -436,7 +468,7 @@ If navigation fails with "Initial robot pose is not available", check SLAM TF de
 ros2 run tf2_ros tf2_monitor map odom
 ```
 
-Average delay should be under 1 second. If higher, check LiDAR frequency (`ros2 topic hz /scan` should show ~5 Hz), CPU load (`top`), and Pi5 temperature (`vcgencmd measure_temp` should be under 80°C).
+Average delay should be under 1 second. If higher, check CPU load (`top`), Pi5 temperature (`vcgencmd measure_temp` should be under 80°C), and that the systemd base services are running (`systemctl --user status ros-nodes.service`).
 
 ### QoS Mismatch on /goal_pose
 
@@ -450,12 +482,91 @@ The `simple_nav_node` uses default RELIABLE QoS. Ensure publishers also use RELI
 
 ### Verifying the Full TF Chain
 
-Required chain: `map` → `odom` → `base_link` → `laser`. Verify each link:
+Required chain: `map` → `odom` → `base_footprint` → `base_link` → `laser`. Verify each link:
 
 ```bash
-ros2 run tf2_ros tf2_echo map odom          # SLAM (~1 Hz)
-ros2 run tf2_ros tf2_echo odom base_link    # EKF (~50 Hz)
-ros2 run tf2_ros tf2_echo base_link laser   # Static (constant)
+ros2 run tf2_ros tf2_echo map odom                # SLAM
+ros2 run tf2_ros tf2_echo odom base_footprint      # EKF (odom_filter)
+ros2 run tf2_ros tf2_echo base_footprint base_link # robot_state_publisher
+ros2 run tf2_ros tf2_echo base_link laser          # static_transform_publisher
 ```
 
-If any link shows "Waiting for transform" indefinitely, the corresponding node (`slam_toolbox`, `odom_filter`, or `static_transform_publisher`) is not running.
+If any link shows "Waiting for transform" indefinitely, the corresponding node is not running. The base services (`odom_filter`, `robot_state_publisher`) are managed by `systemctl --user` and can be restarted with: `systemctl --user restart ros-nodes.service`
+
+### Navigation Mode System (3 Modes)
+
+The navigation mode is determined internally by `simple_nav_node` and published on `/nav_mode`:
+
+| Mode | Condition | Steering | Localization |
+|------|-----------|----------|-------------|
+| `slam` | SLAM TF available + flat ground | Full manual | SLAM + EKF (IMU + wheels) |
+| `dead_reckon` | SLAM unavailable OR tilted > 10° | Full manual | EKF only (IMU + wheels) |
+| `line_follow` | RT trigger held on Xbox controller | Camera auto-steer | EKF (IMU + wheels) |
+
+EKF (odom→base_footprint) runs continuously in ALL modes. Line following is triggered explicitly by the user (RT trigger), not automatically by tilt.
+
+Monitor navigation mode:
+
+```bash
+ros2 topic echo /nav_mode            # Current mode: slam/dead_reckon/line_follow
+ros2 topic echo /slope_mode          # Camera line detection from slope_pilot_node
+ros2 topic echo /line_steer          # Line-follow steering output
+ros2 topic echo /nav_status          # Navigation status
+```
+
+**Line detection tuning:** If the white line is not detected reliably, adjust in `slope_pilot_node.py`: `WHITE_V_MIN` (brightness threshold, default 180 — lower for dim lighting), `MIN_LINE_AREA` (minimum blob size, default 200 — lower for thin lines), `FLOOR_ROI_TOP` (how much of image is floor, default 0.50 — increase if camera points more downward).
+
+### Waypoint Recording & Replay
+
+The waypoint system records the driver's path at 10Hz and replays it autonomously on the Pi5 side using a **pure pursuit** controller for smooth, continuous motion through nav waypoints.
+
+**Three waypoint types** (recorded automatically based on current state):
+
+| Type | Recorded when | Format | Replay behavior |
+|------|-------------|--------|----------------|
+| `nav` | SLAM mode (SLAM available) | `(nav, x, y, yaw)` | Pure pursuit through coordinates |
+| `dead_reckon` | Dead reckon mode (no SLAM or tilted) | `(dead_reckon, speed, steer, duration)` | Timed drive with recorded steering |
+| `line_follow` | RT trigger held during recording | `(line_follow, speed, duration)` | Camera steering, stops if no line |
+
+**Recording (LB = start, RB = stop):**
+- Press LB to start a new recording (clears previous list, records at 10Hz)
+- Drive normally — waypoint type is determined automatically by current mode
+- If RT is held during recording, those segments are recorded as `line_follow`
+- Press RB to stop and save to `waypoint_list.json` on the Windows/PC side
+
+**Replay (LT hold = replay, release = stop):**
+- Hold LT to send the full waypoint list to Pi5 and start replay from nearest waypoint
+- Pi5 `simple_nav_node` executes at 20Hz with obstacle filtering
+- Nav waypoints: pure pursuit (lookahead 30cm, consume at 15cm, smooth arcs)
+- Dead reckon waypoints: replays recorded speed AND steering for faithful turn reproduction
+- Line follow waypoints: drives forward at recorded speed with camera steering (stops if no line visible)
+- If SLAM is unavailable, nav waypoints are skipped (dead_reckon and line_follow still execute)
+- Loops back to the first waypoint after reaching the last
+- Release LT to stop replay. Also cancels with A/C or E-Stop
+
+**Line following (RT hold = follow, release = stop):**
+- Hold RT to start autonomous line following at preset speed
+- If camera detects a white line, rover drives forward with camera steering
+- If no line visible or no camera, rover stops but keeps mode active (resumes when line appears)
+- Release RT to stop. Also cancels with A/C or E-Stop
+- Can be activated simultaneously with recording (line_follow segments get recorded)
+
+**Pure pursuit tuning** (constants at top of `simple_nav_node.py`):
+
+| Constant | Default | Effect |
+|----------|---------|--------|
+| `LOOKAHEAD_DIST` | 0.30m | Larger = smoother curves but cuts corners |
+| `CONSUME_RADIUS` | 0.15m | How close before a waypoint is "passed" |
+| `PURSUIT_SPEED` | 0.25 m/s | Cruise speed during replay |
+| `PURSUIT_MIN_SPEED` | 0.10 m/s | Minimum speed on tight curves |
+| `CURVATURE_SLOW` | 0.10 | Speed reduction per rad/s of turn rate |
+| `LINE_FOLLOW_SPEED` | 0.20 m/s | Forward speed during autonomous line follow |
+| `OBSTACLE_STOP_DIST` | 0.40m | Full stop distance for obstacle avoidance |
+
+**Persistence:** Waypoints are saved as JSON on the Windows side. On restart, holding LT loads from the saved file and re-sends to Pi5. Old files with `"slope"` type are automatically converted to `"dead_reckon"` on load.
+
+```bash
+# Monitor replay status on Pi5
+ros2 topic echo /nav_status
+# Shows: "replaying: Replaying N waypoints from #K" or "replay_stopped: ..."
+```
