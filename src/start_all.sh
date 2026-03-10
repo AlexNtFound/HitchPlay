@@ -288,7 +288,7 @@ fi
 # =============================================================================
 
 launch_and_wait "FastAPI server" \
-    'cd ~/projects/api-server; python3 main.py' \
+    'python3 ~/leo_ws/src/api-server/main.py' \
     "Uvicorn running on" \
     30 && FASTAPI_OK=true
 
@@ -297,12 +297,6 @@ launch_and_wait "ROSBridge WebSocket server" \
      ros2 launch rosbridge_server rosbridge_websocket_launch.xml' \
     "Rosbridge WebSocket server started on port" \
     40 && ROSBRIDGE_OK=true
-
-launch_and_wait "Web video server" \
-    'source /opt/ros/jazzy/setup.bash; set -u;
-     ros2 run web_video_server web_video_server' \
-    "" \
-    5 && WEB_VIDEO_OK=true
 
 # =============================================================================
 # Post-Startup LiDAR Frequency Verification
@@ -354,7 +348,6 @@ fi
 
 [ "$FASTAPI_OK" = true ]   && log "  ✓ FastAPI server"            || log "  ✗ FastAPI server"
 [ "$ROSBRIDGE_OK" = true ] && log "  ✓ ROSBridge WebSocket"       || log "  ✗ ROSBridge WebSocket"
-[ "$WEB_VIDEO_OK" = true ] && log "  ✓ Web video server"          || log "  ✗ Web video server"
 
 echo "=========================================="
 echo "=========================================" >> "$persistent_log"
