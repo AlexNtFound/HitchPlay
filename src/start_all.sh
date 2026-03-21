@@ -31,27 +31,33 @@ cleanup_done=false
 # =============================================================================
 
 log "Checking for leftover processes from previous runs..."
-if pgrep -f "slam_toolbox" > /dev/null 2>&1 || \
-   pgrep -f "sllidar_node" > /dev/null 2>&1 || \
-   pgrep -f "simple_nav_node" > /dev/null 2>&1; then
-    log "  Found leftover processes - cleaning up..."
-    pkill -KILL -f "slam_toolbox" 2>/dev/null || true
-    pkill -KILL -f "sllidar_node" 2>/dev/null || true
-    pkill -KILL -f "simple_nav_node" 2>/dev/null || true
-    pkill -KILL -f "static_transform_publisher" 2>/dev/null || true
-    pkill -KILL -f "leo_system" 2>/dev/null || true
-    pkill -KILL -f "rosbridge" 2>/dev/null || true
-    pkill -KILL -f "web_video_server" 2>/dev/null || true
-    pkill -KILL -f "drive_service" 2>/dev/null || true
-    rm -f /dev/shm/sem.slam_toolbox* 2>/dev/null || true
-    rm -f /dev/shm/slam_toolbox* 2>/dev/null || true
-    rm -rf /tmp/fastrtps_* 2>/dev/null || true
-    rm -rf /tmp/.ros 2>/dev/null || true
-    sleep 3
-    log "  ✓ Cleanup complete"
-else
-    log "  ✓ No leftover processes found"
-fi
+log "Cleaning up leftover processes and ports..."
+
+# Kill processes launched by start_all.sh only
+# DO NOT kill leo_system, odom_filter, imu_filter, robot_state_publisher,
+# firmware_message_converter, web_video_server — these are managed by systemd
+# (ros-nodes.service / leo_bringup.launch.xml) and will NOT restart if killed.
+pkill -KILL -f "slam_toolbox" 2>/dev/null || true
+pkill -KILL -f "sllidar_node" 2>/dev/null || true
+pkill -KILL -f "simple_nav_node" 2>/dev/null || true
+pkill -KILL -f "tilt_gate_node" 2>/dev/null || true
+pkill -KILL -f "slope_pilot_node" 2>/dev/null || true
+pkill -KILL -f "static_transform_publisher" 2>/dev/null || true
+pkill -KILL -f "rosbridge" 2>/dev/null || true
+pkill -KILL -f "drive_service" 2>/dev/null || true
+pkill -KILL -f "uvicorn" 2>/dev/null || true
+pkill -KILL -f "api-server/main.py" 2>/dev/null || true
+
+# Kill by port (catches processes missed by name matching)
+fuser -k 8000/tcp 2>/dev/null || true   # FastAPI
+fuser -k 9090/tcp 2>/dev/null || true   # ROSBridge WebSocket
+
+# Clean SLAM shared memory only (NOT generic fastrtps — systemd nodes use those)
+rm -f /dev/shm/sem.slam_toolbox* 2>/dev/null || true
+rm -f /dev/shm/slam_toolbox* 2>/dev/null || true
+
+sleep 3
+log "  ✓ Cleanup complete"
 
 echo ""
 
@@ -124,16 +130,20 @@ cleanup() {
     pkill -INT -f "main.py" 2>/dev/null || true
     sleep 1
 
-    echo "  Stopping web video server..."
-    pkill -INT -f "web_video_server" 2>/dev/null || true
-    sleep 1
-
     echo "  Stopping Drive service..."
     pkill -INT -f "drive_service" 2>/dev/null || true
     sleep 1
 
     echo "  Stopping simple navigation node..."
     pkill -INT -f "simple_nav_node" 2>/dev/null || true
+    sleep 1
+
+    echo "  Stopping tilt gate node..."
+    pkill -INT -f "tilt_gate_node" 2>/dev/null || true
+    sleep 1
+
+    echo "  Stopping slope pilot node..."
+    pkill -INT -f "slope_pilot_node" 2>/dev/null || true
     sleep 1
 
     echo "  Stopping SLAM toolbox..."
@@ -151,21 +161,22 @@ cleanup() {
     sleep 8
     pkill -KILL -f "sllidar_node" 2>/dev/null || true
 
-    echo "  Stopping Leo base system..."
-    pkill -INT -f "leo_system" 2>/dev/null || true
-    sleep 2
+    # NOTE: Do NOT kill leo_system, odom_filter, imu_filter, robot_state_publisher,
+    # firmware_message_converter, web_video_server. These are managed by systemd.
 
     for pid in "${pids[@]}"; do
         kill -KILL -$pid 2>/dev/null || true
     done
 
-    pkill -KILL -f "ros2 launch" 2>/dev/null || true
-    pkill -KILL -f "ros2 run" 2>/dev/null || true
+    # Only kill ros2 launch/run started by THIS script
+    pkill -KILL -f "ros2 launch sllidar" 2>/dev/null || true
+    pkill -KILL -f "ros2 launch slam_toolbox" 2>/dev/null || true
+    pkill -KILL -f "ros2 launch rosbridge" 2>/dev/null || true
+    pkill -KILL -f "ros2 run custom_drive_pkg" 2>/dev/null || true
     pkill -P $$ 2>/dev/null || true
 
     rm -f /dev/shm/sem.slam_toolbox* 2>/dev/null || true
     rm -f /dev/shm/slam_toolbox* 2>/dev/null || true
-    rm -rf /tmp/fastrtps_* 2>/dev/null || true
 
     echo "Logs saved in: $log_dir"
     echo "Cleanup complete"
@@ -183,7 +194,8 @@ if [ -e /dev/ttyUSB0 ] || [ -e /dev/ttyUSB1 ]; then
     LIDAR_CONNECTED=true
     log "✓ LiDAR detected"
 else
-    log "⚠ LiDAR not detected - skipping LiDAR, SLAM, and navigation"
+    log "⚠ LiDAR not detected - skipping LiDAR driver, SLAM, obstacle avoidance"
+    log "  Navigation will use IMU dead-reckoning only (no SLAM localization)"
 fi
 
 echo ""
@@ -195,6 +207,8 @@ echo ""
 LEO_OK=false
 LIDAR_OK=false
 SLAM_OK=false
+TILTGATE_OK=false
+SLOPEPILOT_OK=false
 SIMPLENAV_OK=false
 DRIVE_OK=false
 FASTAPI_OK=false
@@ -202,7 +216,12 @@ ROSBRIDGE_OK=false
 WEB_VIDEO_OK=false
 
 launch_and_wait "Leo base system" \
-    'source /opt/ros/jazzy/setup.bash; set -u; ros2 run leo_bringup leo_system' \
+    'source /opt/ros/jazzy/setup.bash; set -u;
+     if ros2 node list 2>/dev/null | grep -q "/leo_system"; then
+       echo "Leo system node started! (already running via systemd)";
+     else
+       ros2 run leo_bringup leo_system;
+     fi' \
     "Leo system node started!" \
     15 && LEO_OK=true
 
@@ -234,11 +253,25 @@ if [ "$LIDAR_CONNECTED" = true ]; then
     sleep 8
 
     # =========================================================================
+    # Tilt Gate Node (gates LiDAR scans on slopes for SLAM stability)
+    # When rover tilts >10 deg, suppresses scans so SLAM freezes
+    # and EKF dead-reckons with IMU+wheels until flat again.
+    # =========================================================================
+    launch_and_wait "Tilt gate node" \
+        'source /opt/ros/jazzy/setup.bash; set -u;
+         python3 ~/leo_ws/src/tilt_gate_node.py' \
+        "Tilt Gate Node" \
+        10 && TILTGATE_OK=true
+
+    # =========================================================================
     # SLAM Toolbox (localization + mapping)
+    # Uses default config (subscribes to /scan, base_frame=base_footprint).
+    # Tilt gate publishes /scan_gated for future use but SLAM reads /scan directly.
     # =========================================================================
     launch_and_wait "SLAM Toolbox" \
         'source /opt/ros/jazzy/setup.bash; set -u;
-         ros2 launch slam_toolbox online_async_launch.py use_sim_time:=false' \
+         ros2 launch slam_toolbox online_async_launch.py \
+           use_sim_time:=false' \
         "Registering sensor" \
         30 && SLAM_OK=true
 
@@ -260,28 +293,52 @@ if [ "$LIDAR_CONNECTED" = true ]; then
         log "  ⚠ SLAM TF (map→odom) not yet available - navigation may fail initially"
     fi
 
-    # =========================================================================
-    # Simple Navigation Node
-    # Provides go-to-coordinate and go-home via /goal_pose topic
-    # ~2% CPU, no obstacle avoidance
-    # =========================================================================
-    launch_and_wait "Simple navigation node" \
-        'source /opt/ros/jazzy/setup.bash; set -u;
-         python3 ~/leo_ws/src/simple_nav_node.py' \
-        "Simple Navigation Node" \
-        10 && SIMPLENAV_OK=true
+fi  # end LIDAR_CONNECTED
 
-    # =========================================================================
-    # Drive Service
-    # =========================================================================
-    launch_and_wait "Drive service" \
-        'source /opt/ros/jazzy/setup.bash;
-         source ~/leo_ws/install/setup.bash; set -u;
-         ros2 run custom_drive_pkg drive_service' \
-        "Drive Service Ready" \
-        15 && DRIVE_OK=true
+# =============================================================================
+# Core Navigation Nodes (always run — degrade gracefully without LiDAR/SLAM)
+# =============================================================================
 
+# =========================================================================
+# Slope Pilot Node (camera line detection for slope navigation)
+# =========================================================================
+# Requires: python3-opencv, ros-jazzy-cv-bridge (mandatory packages).
+# Camera hardware is OPTIONAL — if no camera publishers detected on
+# /camera/image_rect_color, node runs in IMU-only mode (flat/dead_reckon,
+# no line_follow). Camera is re-detected every 5s for hot-plug support.
+# If node fails entirely, simple_nav_node falls back to its own IMU tilt.
+# =========================================================================
+launch_and_wait "Slope pilot node" \
+    'source /opt/ros/jazzy/setup.bash; set -u;
+     python3 ~/leo_ws/src/slope_pilot_node.py' \
+    "Slope Pilot Node" \
+    10 && SLOPEPILOT_OK=true
+
+if [ "$SLOPEPILOT_OK" != true ]; then
+    log "  ⚠ Slope pilot node failed — simple_nav_node will use IMU fallback"
 fi
+
+# =========================================================================
+# Simple Navigation Node
+# Provides teleop passthrough, go-home, waypoint replay, obstacle avoidance.
+# Without LiDAR: obstacle avoidance disabled, teleop still works.
+# Without SLAM: coordinate navigation disabled, dead-reckoning only.
+# =========================================================================
+launch_and_wait "Simple navigation node" \
+    'source /opt/ros/jazzy/setup.bash; set -u;
+     python3 ~/leo_ws/src/simple_nav_node.py' \
+    "Simple Navigation Node" \
+    10 && SIMPLENAV_OK=true
+
+# =========================================================================
+# Drive Service
+# =========================================================================
+launch_and_wait "Drive service" \
+    'source /opt/ros/jazzy/setup.bash;
+     source ~/leo_ws/install/setup.bash; set -u;
+     ros2 run custom_drive_pkg drive_service' \
+    "Drive Service Ready" \
+    15 && DRIVE_OK=true
 
 # =============================================================================
 # API & Communication
@@ -340,11 +397,16 @@ echo "Startup Summary" >> "$persistent_log"
 [ "$LEO_OK" = true ]       && log "  ✓ Leo base system"          || log "  ✗ Leo base system"
 
 if [ "$LIDAR_CONNECTED" = true ]; then
-    [ "$LIDAR_OK" = true ]     && log "  ✓ LiDAR driver (5 Hz)"     || log "  ✗ LiDAR driver"
+    [ "$LIDAR_OK" = true ]     && log "  ✓ LiDAR driver"             || log "  ✗ LiDAR driver"
+    [ "$TILTGATE_OK" = true ]  && log "  ✓ Tilt gate node"          || log "  ✗ Tilt gate node"
     [ "$SLAM_OK" = true ]      && log "  ✓ SLAM Toolbox"             || log "  ✗ SLAM Toolbox"
-    [ "$SIMPLENAV_OK" = true ] && log "  ✓ Simple navigation node"   || log "  ✗ Simple navigation node"
-    [ "$DRIVE_OK" = true ]     && log "  ✓ Drive service"            || log "  ✗ Drive service"
+else
+    log "  ⚠ LiDAR not connected (no obstacle avoidance, no SLAM)"
 fi
+
+[ "$SLOPEPILOT_OK" = true ] && log "  ✓ Slope pilot node"        || log "  ⚠ Slope pilot node (IMU fallback)"
+[ "$SIMPLENAV_OK" = true ] && log "  ✓ Simple navigation node"   || log "  ✗ Simple navigation node"
+[ "$DRIVE_OK" = true ]     && log "  ✓ Drive service"            || log "  ✗ Drive service"
 
 [ "$FASTAPI_OK" = true ]   && log "  ✓ FastAPI server"            || log "  ✗ FastAPI server"
 [ "$ROSBRIDGE_OK" = true ] && log "  ✓ ROSBridge WebSocket"       || log "  ✗ ROSBridge WebSocket"
@@ -354,7 +416,10 @@ echo "=========================================" >> "$persistent_log"
 
 if [ "$LIDAR_CONNECTED" = true ]; then
     echo ""
-    log "Navigation: simple_nav_node (straight-line, no obstacle avoidance)"
+    log "Navigation: SLAM + obstacle avoidance + pure pursuit replay"
+else
+    echo ""
+    log "Navigation: IMU dead-reckoning only (no LiDAR, no SLAM, no obstacle avoidance)"
 fi
 
 echo ""
