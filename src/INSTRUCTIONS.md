@@ -27,6 +27,24 @@ First we need to examine the condition of the onboard Pi5 board and its attachme
 
    Custom SSD drive may have different capacity, while the official LeoOS image may only create one very small boot segment and one root segment. To fully utilize the SSD capacity, please install gnome-disks GUI app, and resize the root segment to the max capacity. This will allow the root directory to be able to store larger ROS packages and data later.
 
+6. **USB Current Limit Configuration (Critical for Pi5)**
+
+   The Raspberry Pi 5 has a default total USB current limit of 600mA. In this setup, the combined load from the SSD, LiDAR, and Wi-Fi adapter can exceed that default. If the USB current limit is not raised, the system may experience boot instability, Wi-Fi dropouts, and increased TF latency visible in RViz2.
+
+   To increase the USB current limit, edit:
+
+   ```bash
+   sudo nano /boot/firmware/config.txt
+   ```
+
+   Add the following line at the end of the file:
+
+   ```bash
+   usb_max_current_enable=1
+   ```
+
+   This setting requires the rover power source to provide sufficient current headroom for Pi5 and attached USB peripherals.
+
    Finally, if connecting an external monitor is needed, we recommend connecting the mini-HDMI with its onboard HDMI0 port.
 
 ## 2. Software Setup and Development
@@ -460,15 +478,43 @@ To load a saved map on next startup, add the `map_file_name` parameter to the SL
 
 ## Appendix A: Troubleshooting
 
-### SLAM TF Delay
+### SLAM TF Delay & RViz2 Lag
 
-If navigation fails with "Initial robot pose is not available", check SLAM TF delay:
+If navigation fails with "Initial robot pose is not available", or if you observe wheel TFs lagging behind the actual rover movement in RViz2, check the following:
 
-```bash
-ros2 run tf2_ros tf2_monitor map odom
-```
+1. **USB Power Throttle**
 
-Average delay should be under 1 second. If higher, check CPU load (`top`), Pi5 temperature (`vcgencmd measure_temp` should be under 80°C), and that the systemd base services are running (`systemctl --user status ros-nodes.service`).
+   Verify that `usb_max_current_enable=1` is set in `/boot/firmware/config.txt`. Insufficient USB current can cause peripheral instability or communication latency affecting LiDAR and Wi-Fi performance.
+
+2. **LiDAR Frequency**
+
+   Ensure the LiDAR is running at approximately 5 Hz:
+
+   ```bash
+   ros2 topic hz /scan
+   ```
+
+   Rates above 10 Hz may overload `slam_toolbox` on the Pi5.
+
+3. **TF Monitor**
+
+   Check TF delay directly:
+
+   ```bash
+   ros2 run tf2_ros tf2_monitor map odom
+   ```
+
+   Average delay should remain under 1 second.
+
+4. **Thermal Throttling**
+
+   Check Pi5 temperature:
+
+   ```bash
+   vcgencmd measure_temp
+   ```
+
+   If the temperature exceeds 80°C, CPU throttling may increase TF processing latency.
 
 ### QoS Mismatch on /goal_pose
 

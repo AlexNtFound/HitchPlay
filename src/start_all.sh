@@ -345,7 +345,7 @@ launch_and_wait "Drive service" \
 # =============================================================================
 
 launch_and_wait "FastAPI server" \
-    'cd ~/projects/api-server; python3 main.py' \
+    'python3 ~/leo_ws/src/api-server/main.py' \
     "Uvicorn running on" \
     30 && FASTAPI_OK=true
 
@@ -354,16 +354,6 @@ launch_and_wait "ROSBridge WebSocket server" \
      ros2 launch rosbridge_server rosbridge_websocket_launch.xml' \
     "Rosbridge WebSocket server started on port" \
     40 && ROSBRIDGE_OK=true
-
-# Web video server is launched by leo_bringup.launch.xml (systemd).
-# Just verify it's running — do NOT launch a duplicate.
-if pgrep -f "web_video_server" > /dev/null 2>&1; then
-    log "Starting: Web video server"
-    log "  ✓ Ready! (already running via systemd)"
-    WEB_VIDEO_OK=true
-else
-    log "  ⚠ Web video server not detected — camera streaming unavailable"
-fi
 
 # =============================================================================
 # Post-Startup LiDAR Frequency Verification
@@ -420,7 +410,6 @@ fi
 
 [ "$FASTAPI_OK" = true ]   && log "  ✓ FastAPI server"            || log "  ✗ FastAPI server"
 [ "$ROSBRIDGE_OK" = true ] && log "  ✓ ROSBridge WebSocket"       || log "  ✗ ROSBridge WebSocket"
-[ "$WEB_VIDEO_OK" = true ] && log "  ✓ Web video server"          || log "  ✗ Web video server"
 
 echo "=========================================="
 echo "=========================================" >> "$persistent_log"
