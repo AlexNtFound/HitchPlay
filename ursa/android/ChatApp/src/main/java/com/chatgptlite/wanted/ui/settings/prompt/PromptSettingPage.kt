@@ -22,7 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.ui.platform.LocalContext
-import com.chatgptlite.wanted.ui.common.AppBar
+import androidx.compose.material3.MaterialTheme
 
 @Composable
 fun PromptSettingPage(
@@ -35,12 +35,7 @@ fun PromptSettingPage(
     val context = LocalContext.current
 
     Scaffold(
-        topBar = {
-            AppBar(
-                title = "Prompt Settings",
-                onBackPressed = onBackPressed
-            )
-        }
+        containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
         Column(
             modifier = Modifier

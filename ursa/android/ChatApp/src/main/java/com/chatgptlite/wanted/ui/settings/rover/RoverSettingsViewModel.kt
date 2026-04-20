@@ -65,6 +65,20 @@ class RoverSettingsViewModel(application: Application) : AndroidViewModel(applic
     private val _roverState = MutableStateFlow("Executing")
     val roverState: StateFlow<String> = _roverState
 
+    // ---- Init Guard (prevent duplicate connections on page switch) ----
+    private var feedsInitialized = false
+
+    fun initFeedsOnce(mainViewModel: MainViewModel) {
+        if (feedsInitialized) return
+        feedsInitialized = true
+        syncWithMainViewModel(mainViewModel)
+        startCoordinatesWebSocket()
+        startVelocityWebSocket()
+        startBatteryWebSocket()
+        startOccupancyWebSocket()
+        receiveFeed("10.0.0.1", "8080", "/stream?topic=/camera/image_raw&type=ros_compressed")
+    }
+
     // Function to sync with MainViewModel
     fun syncWithMainViewModel(mainViewModel: MainViewModel) {
         viewModelScope.launch {

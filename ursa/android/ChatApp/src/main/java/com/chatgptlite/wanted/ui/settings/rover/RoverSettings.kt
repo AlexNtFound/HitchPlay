@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -36,7 +37,8 @@ import com.chatgptlite.wanted.ui.common.AppBar
 fun SettingsScreen(
     mainViewModel: MainViewModel = viewModel(),
     viewModel: RoverSettingsViewModel = viewModel(),
-    onBackPressed: () -> Unit
+    onBackPressed: () -> Unit,
+    onOccMapClick: () -> Unit = {}
 ) {
     LaunchedEffect(Unit) {
         viewModel.syncWithMainViewModel(mainViewModel) // Sync states
@@ -63,6 +65,7 @@ fun SettingsScreen(
     val heading by viewModel.heading.collectAsState()
     val battery by viewModel.battery.collectAsState()
 
+    // Config loaded for local display only; feeds/websockets initialized once in MainActivity
     LaunchedEffect(Unit) {
         val config = viewModel.loadConfig()
         config?.let {
@@ -70,12 +73,6 @@ fun SettingsScreen(
             port = it.port
             textToSend = it.textToSend
         }
-
-        viewModel.startCoordinatesWebSocket()
-        viewModel.startVelocityWebSocket()
-        viewModel.startBatteryWebSocket()
-        viewModel.startOccupancyWebSocket()
-        viewModel.receiveFeed("10.0.0.1", "8080", "/stream?topic=/camera/image_raw&type=ros_compressed") //different port number and IP Address
     }
 
     Scaffold(
@@ -141,7 +138,7 @@ fun SettingsScreen(
                         .weight(1f)
                         .padding(start = 8.dp)
                 ) {
-                    OccupancyDisplay(viewModel.occupancyBitmap.value)
+                    OccupancyDisplay(viewModel.occupancyBitmap.value, onOccMapClick)
                     Spacer(modifier = Modifier.height(8.dp))
                     TelemetryBlock("Coordinates (X, Y)", "$xCoordinate, $yCoordinate")
                     Spacer(modifier = Modifier.height(8.dp))
@@ -279,12 +276,13 @@ fun TelemetryBlock(title: String, value: String? = null, isState: Boolean? = fal
 //}
 
 @Composable
-fun OccupancyDisplay(bitmap: Bitmap?) {
+fun OccupancyDisplay(bitmap: Bitmap?, onClick: () -> Unit = {}) {
     Box(
         modifier = Modifier
             .aspectRatio(1f)
             .border(1.dp, color = MaterialTheme.colorScheme.primary.copy(alpha=0.3f), shape = RoundedCornerShape(8.dp))
-            .background(Color.Black, shape = RoundedCornerShape(8.dp)),
+            .background(Color.Black, shape = RoundedCornerShape(8.dp))
+            .clickable { onClick() },
         contentAlignment = Alignment.Center
     ) {
         if (bitmap != null) {

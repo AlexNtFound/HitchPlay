@@ -32,33 +32,7 @@ fun Occupancy(
     }
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Box(
-                        modifier = Modifier.fillMaxWidth(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "Occupancy Map",
-                            style = MaterialTheme.typography.titleMedium // Adjust text style if needed
-                        )
-                    }
-                },
-                modifier = Modifier.height(48.dp), // Reduce height of the TopAppBar
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary
-                )
-            )
-        }
-
-//        topBar = {
-//            AppBar(
-//                title = "Occupancy Map",
-//                onBackPressed = onBackPressed
-//            )
-//        }
+        containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
         Column(
             modifier = Modifier
