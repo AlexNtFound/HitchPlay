@@ -33,20 +33,34 @@ public class ChatBackend {
         }
 
         String externalDir = context.getExternalCacheDir().getAbsolutePath();
+        // Copy config/tokenizer from assets (small files bundled in APK)
         copyAssetsDir("models", externalDir);
         copyAssetsDir("htp_config", externalDir);
         Log.i("ChatBackend", "external path = " + externalDir);
 
         Path htpConfigPath = Paths.get(externalDir, "htp_config", supportedSocModel.get(socModel));
-        String modelName = "llama3_2_3b";
+        String modelName = "qwen2_5_7b_instruct";
         Path modelPath = Paths.get(externalDir, "models", modelName);
+
+        // Model .bin files must be pre-loaded on device via adb push.
+        // They are too large (~4.8GB) to bundle in the APK.
+        // Expected location: <externalCacheDir>/models/qwen2_5_7b_instruct/*.bin
+        File modelDir = modelPath.toFile();
+        File[] binFiles = modelDir.listFiles((dir, name) -> name.endsWith(".bin"));
+        if (binFiles == null || binFiles.length == 0) {
+            throw new RuntimeException(
+                "Model .bin files not found at " + modelPath + ". " +
+                "Push them via: adb push <bin_files> " +
+                "/storage/emulated/0/Android/data/com.quicinc.chatapp/cache/models/" + modelName + "/"
+            );
+        }
+        Log.i("ChatBackend", "Found " + binFiles.length + " bin files in " + modelPath);
 
         Log.i("ChatBackend", "htp config path = " + htpConfigPath.toString());
         Log.i("ChatBackend", "model path = " + modelPath.toString());
-        File modelDir = modelPath.toFile();
 
         // Initialize Genie
-        genieWrapper = new GenieWrapper(htpConfigPath.toString(), modelPath.toString());
+        genieWrapper = new GenieWrapper(modelPath.toString(), htpConfigPath.toString());
         Log.i("ChatApp", modelName + " Loaded.");
     }
 

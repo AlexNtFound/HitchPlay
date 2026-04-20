@@ -29,15 +29,15 @@
 
 ## About the Project
 
-Ursa is an Android application that converts natural language user commands into machine code instructions for robotic control, leveraging an on-device large language model (LLM). This project employs the **LlaMA 3.2-3B** model and integrates Qualcomm’s [Chat App Demo](https://github.com/quic/ai-hub-apps/tree/main/android/ChatApp). Sponsored by **Qualcomm**.
+Ursa is an Android application that converts natural language user commands into machine code instructions for robotic control, leveraging an on-device large language model (LLM). This project currently employs **Qwen 2.5-7B-Instruct** (previously LLaMA 3.2-3B) and integrates Qualcomm’s [Chat App Demo](https://github.com/quic/ai-hub-apps/tree/main/android/ChatApp). Sponsored by **Qualcomm**.
 
 ## Demo
 
 [![Watch the demo on YouTube](https://img.youtube.com/vi/QfCmIGPUlbI/0.jpg)](https://youtu.be/QfCmIGPUlbI)
 
 ## Key Features
-- Natural language to ROS2 code translation using LLaMA 3.2-3B and Whisper-tiny.en
-- On-device model inference with Qualcomm Genie runtime and AI Hub binaries
+- Natural language to ROS2 code translation using Qwen 2.5-7B-Instruct and Whisper-tiny.en
+- On-device model inference with Qualcomm Genie runtime and QAI Hub binaries
 - Support for both manual control and real-time voice input
 - Real-time telemetry, video streaming, and occupancy map display
 - Fully offline operation; secure, responsive, and mobile-optimized
@@ -49,7 +49,7 @@ Ursa is an Android application that converts natural language user commands into
                ↓
 [ Whisper Model (STT) ]
                ↓
-[ LLaMA 3.2-3B Inference (Genie Runtime) ]
+[ Qwen 2.5-7B-Instruct Inference (Genie Runtime) ]
                ↓
 [ ROS2 Code Generation ]
                ↓
@@ -63,17 +63,20 @@ Ursa is an Android application that converts natural language user commands into
 **Frontend**: Kotlin/Java (Android Studio)  
 **Backend**:  
 - Whisper-tiny.en (speech-to-text)  
-- LLaMA 3.2-3B (natural language to code generation)  
+- Qwen 2.5-7B-Instruct (natural language to code generation)  
 - Qualcomm Genie runtime for inference
 
-**Hardware**: Qualcomm Snapdragon 8 Gen 3 / Snapdragon X Elite
+**Hardware**: Qualcomm Snapdragon 8 Elite / 8 Gen 3 / 8 Gen 2
 
 
 ## Getting Started with the App
 
-Navigate to the source directory: [android/ChatApp](android/ChatApp).
-
-Follow the README there for build instructions, dependencies, and model setup.
+See **[BUILD_GUIDE.md](BUILD_GUIDE.md)** for complete instructions covering:
+- Prerequisites (Gradle 8.9, QNN SDK, NDK)
+- Building the APK and deploying to device
+- Side-loading model weight files via adb
+- Swapping to a different LLM model
+- Performance tuning
 
 ## Attribution
 

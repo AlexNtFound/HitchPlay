@@ -12,9 +12,9 @@ plugins {
 // Download QNN SDK from https://qpm.qualcomm.com/#/main/tools/details/qualcomm_ai_engine_direct
 // Lisa: /Users/qhou11/Desktop/Desktop_Pro/Berkeley/capstone/app_package/2.31.0.250130
 // Shujie: /Users/shujiedeng/Desktop/chat_app_model_qnn/2.31.0.250130
-def qnnSDKLocalPath="/Users/homie/Documents/UCB_MEng/2.31.0.250130"
+def qnnSDKLocalPath="C:/Qualcomm/AIStack/QAIRT/2.42.0.251225"
 // List of model assets
-def models = ["llama3_2_3b"]
+def models = ["qwen2_5_7b_instruct"]
 // Relative asset path for model configuration and binaries
 def relAssetsPath = "src/main/assets/models/"
 def buildDir = project(":ChatApp").getLayout().getBuildDirectory()
