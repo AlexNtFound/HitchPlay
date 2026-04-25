@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -347,10 +348,10 @@ class MainActivity : ComponentActivity() {
                     val controllerViewModel: VideoCamSettingsViewModel = viewModel()
                     val statusViewModel: RoverSettingsViewModel = viewModel()
 
-                    // Initialize feeds ONCE
+                    // Initialize Controller feeds at startup (it's the start page)
+                    // Status feeds are initialized when the Status page is first opened
                     LaunchedEffect(Unit) {
                         controllerViewModel.initFeedsOnce()
-                        statusViewModel.initFeedsOnce(mainViewModel)
                     }
 
                     // Main pages are Controller and Status
@@ -420,8 +421,9 @@ class MainActivity : ComponentActivity() {
                                                     )
                                                 }
                                             } else {
-                                                // Battery indicator on main pages
-                                                BatteryIndicator()
+                                                // Battery indicator from real data
+                                                val batteryPct by statusViewModel.battery.collectAsState()
+                                                BatteryIndicator(batteryPct)
                                             }
                                         },
                                         actions = {
@@ -737,7 +739,13 @@ fun BottomNavigationBar(
 // ==================== Battery Indicator ====================
 
 @Composable
-fun BatteryIndicator() {
+fun BatteryIndicator(batteryPct: Int = 0) {
+    val color = when {
+        batteryPct >= 50 -> MaterialTheme.colorScheme.primary
+        batteryPct >= 25 -> Color(0xFFFFEB3B)
+        batteryPct > 0 -> Color(0xFFF44336)
+        else -> Color(0xFF888888)
+    }
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.padding(start = 8.dp)
@@ -745,13 +753,13 @@ fun BatteryIndicator() {
         Icon(
             imageVector = Icons.Default.BatteryFull,
             contentDescription = "Battery",
-            tint = MaterialTheme.colorScheme.primary,
+            tint = color,
             modifier = Modifier.size(20.dp)
         )
         Spacer(modifier = Modifier.width(4.dp))
         Text(
-            text = "78%",
-            color = MaterialTheme.colorScheme.primary,
+            text = if (batteryPct > 0) "$batteryPct%" else "--",
+            color = color,
             fontSize = 11.sp,
             fontWeight = FontWeight.SemiBold
         )

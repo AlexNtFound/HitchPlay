@@ -11,11 +11,13 @@ import okhttp3.Response
 
 class RoverWebSocketListener(
     private val topic: String,
+    private val onConnected: ((String) -> Unit)? = null,
+    private val onFailed: ((String, String) -> Unit)? = null,
     private val onMessageReceived: (String) -> Unit
 ) : WebSocketListener() {
 
     override fun onOpen(webSocket: WebSocket, response: Response) {
-        Log.d("WebSocket", "Connection Opened")
+        Log.d("WebSocket", "Connection Opened for $topic")
         val subscribeMessage = """
             {
                 "op": "subscribe",
@@ -23,16 +25,17 @@ class RoverWebSocketListener(
             }
         """.trimIndent()
         webSocket.send(subscribeMessage)
+        onConnected?.invoke(topic)
     }
 
     override fun onMessage(webSocket: WebSocket, text: String) {
         Log.d("WebSocket", "Message received: $text")
-        onMessageReceived(text) // Pass the received message to the callback
+        onMessageReceived(text)
     }
 
     override fun onMessage(webSocket: WebSocket, bytes: ByteString) {
         Log.d("WebSocket", "Message received (bytes): $bytes")
-        onMessageReceived(bytes.utf8()) // Pass the received bytes as a string
+        onMessageReceived(bytes.utf8())
     }
 
     override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
@@ -41,7 +44,8 @@ class RoverWebSocketListener(
     }
 
     override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-        Log.e("WebSocket", "Error: ${t.message}")
+        Log.e("WebSocket", "Error on $topic: ${t.message}")
+        onFailed?.invoke(topic, t.message ?: "unknown error")
     }
 }
 

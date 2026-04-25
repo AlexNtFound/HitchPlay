@@ -40,8 +40,9 @@ fun SettingsScreen(
     onBackPressed: () -> Unit,
     onOccMapClick: () -> Unit = {}
 ) {
+    // Initialize connections — each method is individually guarded against duplicates
     LaunchedEffect(Unit) {
-        viewModel.syncWithMainViewModel(mainViewModel) // Sync states
+        viewModel.initFeedsOnce(mainViewModel)
     }
 
     val roverState by viewModel.roverState.collectAsState()

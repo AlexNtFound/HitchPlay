@@ -62,25 +62,33 @@ class RoverSettingsViewModel(application: Application) : AndroidViewModel(applic
     private val _messageResult = MutableStateFlow<String?>(null)
     val messageResult: StateFlow<String?> = _messageResult.asStateFlow()
 
-    private val _roverState = MutableStateFlow("Executing")
+    private val _roverState = MutableStateFlow("Idle")
     val roverState: StateFlow<String> = _roverState
 
-    // ---- Init Guard (prevent duplicate connections on page switch) ----
-    private var feedsInitialized = false
+    // ---- Per-connection guards (prevent duplicates while allowing retry) ----
+    private var _coordsStarted = false
+    private var _velocityStarted = false
+    private var _batteryStarted = false
+    private var _occupancyStarted = false
+    private var _feedStarted = false
+    private var _syncStarted = false
 
     fun initFeedsOnce(mainViewModel: MainViewModel) {
-        if (feedsInitialized) return
-        feedsInitialized = true
         syncWithMainViewModel(mainViewModel)
         startCoordinatesWebSocket()
         startVelocityWebSocket()
         startBatteryWebSocket()
         startOccupancyWebSocket()
-        receiveFeed("10.0.0.1", "8080", "/stream?topic=/camera/image_raw&type=ros_compressed")
+        if (!_feedStarted) {
+            _feedStarted = true
+            receiveFeed("10.0.0.1", "8080", "/stream?topic=/camera/image_raw&type=ros_compressed")
+        }
     }
 
     // Function to sync with MainViewModel
     fun syncWithMainViewModel(mainViewModel: MainViewModel) {
+        if (_syncStarted) return
+        _syncStarted = true
         viewModelScope.launch {
             mainViewModel.roverStateFlow.collectLatest { newState ->
                 _roverState.value = newState // Update when MainViewModel emits new state
@@ -118,7 +126,8 @@ class RoverSettingsViewModel(application: Application) : AndroidViewModel(applic
 
     //Occupancy Map
     fun startOccupancyWebSocket() {
-//        val topic = "/local_costmap/costmap"
+        if (_occupancyStarted) return
+        _occupancyStarted = true
         val topic = "/map"
         val request = Request.Builder()
             .url("ws://$WEBSOCKET_IPADDRESS:$WEBSOCKET_PORT")
@@ -192,6 +201,8 @@ class RoverSettingsViewModel(application: Application) : AndroidViewModel(applic
     )
 
     fun startVelocityWebSocket() {
+        if (_velocityStarted) return
+        _velocityStarted = true
         val topic1 = "/cmd_vel"
         val topic2 = "/cmd_vel_nav"
 
@@ -345,6 +356,8 @@ class RoverSettingsViewModel(application: Application) : AndroidViewModel(applic
 
     // Coordinates and Heading
     fun startCoordinatesWebSocket() {
+        if (_coordsStarted) return
+        _coordsStarted = true
         val topic = "/pose"
         val request = Request.Builder()
             .url("ws://$WEBSOCKET_IPADDRESS:$WEBSOCKET_PORT")
@@ -388,6 +401,8 @@ class RoverSettingsViewModel(application: Application) : AndroidViewModel(applic
     }
 
     fun startBatteryWebSocket() {
+        if (_batteryStarted) return
+        _batteryStarted = true
         val topic = "/firmware/battery_averaged"
         val request = Request.Builder()
             .url("ws://$WEBSOCKET_IPADDRESS:$WEBSOCKET_PORT")
