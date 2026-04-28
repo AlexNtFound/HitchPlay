@@ -7,10 +7,10 @@
 
 using namespace AppUtils;
 
-// Llama3 prompt
+// Qwen2.5 ChatML prompt
 constexpr const std::string_view c_bot_name = "Hitch";
 constexpr const std::string_view c_first_prompt_prefix_part_1 =
-        "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\nYour name is ";
+        "<|im_start|>system\nYour name is ";
 constexpr const std::string_view c_first_prompt_prefix_part_2 = R"(and you are a rover control assistant.
 You convert user instructions into ROS2 service calls. Output only the command, nothing else.
 
@@ -77,11 +77,11 @@ Output: Sorry, I don't understand.
 User: Tell me a joke
 Output: Sorry, I don't understand.
 
-IMPORTANT: Respond with ONLY the command or error message. No explanations, no extra text.<|eot_id|>)";
+IMPORTANT: Respond with ONLY the command or error message. No explanations, no extra text.<|im_end|>)";
 
-constexpr const std::string_view c_prompt_prefix = "<|start_header_id|>user<|end_header_id|>\n\n";
-constexpr const std::string_view c_end_of_prompt = "<|eot_id|>";
-constexpr const std::string_view c_assistant_header = "<|start_header_id|>assistant<|end_header_id|>\n\n";
+constexpr const std::string_view c_prompt_prefix = "<|im_start|>user\n";
+constexpr const std::string_view c_end_of_prompt = "<|im_end|>\n";
+constexpr const std::string_view c_assistant_header = "<|im_start|>assistant\n";
 
 PromptHandler::PromptHandler()
         : m_is_first_prompt(true)
@@ -90,7 +90,7 @@ PromptHandler::PromptHandler()
 
 std::string PromptHandler::GetPromptWithTag(const std::string& user_prompt)
 {
-    // Ref: https://www.llama.com/docs/model-cards-and-prompt-formats/meta-llama-3/
+    // Ref: https://huggingface.co/Qwen/Qwen2.5-7B-Instruct (ChatML format)
     if (m_is_first_prompt)
     {
         m_is_first_prompt = false;

@@ -1,10 +1,7 @@
 package com.chatgptlite.wanted
 
-//import com.chatgptlite.wanted.ui.conversations.components.startBackgroundRecorder
-
 import android.Manifest
 import android.annotation.SuppressLint
-import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -15,23 +12,30 @@ import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.viewModels
+import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.BatteryFull
 import androidx.compose.material.icons.filled.ControlCamera
-import androidx.compose.material.icons.filled.Help
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.ComposeView
@@ -39,11 +43,9 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.material.icons.filled.ArrowBack
-
+import androidx.compose.ui.zIndex
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
@@ -60,14 +62,19 @@ import com.chatgptlite.wanted.data.whisper.utils.WaveUtil
 import com.chatgptlite.wanted.helpers.sendMessage
 import com.chatgptlite.wanted.services.getFilePath
 import com.chatgptlite.wanted.ui.NavRoute
-import com.chatgptlite.wanted.ui.settings.advance.AdvanceScreen
-import com.chatgptlite.wanted.ui.settings.advance.AdvanceViewModel
-import com.chatgptlite.wanted.ui.settings.rover.RoverSettingsViewModel
-import com.chatgptlite.wanted.ui.settings.rover.SettingsScreen
-import com.chatgptlite.wanted.ui.settings.terminal.TerminalScreen
-import com.chatgptlite.wanted.ui.settings.terminal.TerminalViewModel
+// AdvanceViewModel no longer needed — advance is now an overlay panel
 import com.chatgptlite.wanted.ui.settings.controller.VideoCamSettingsViewModel
 import com.chatgptlite.wanted.ui.settings.controller.VideoStreamingSetting
+import com.chatgptlite.wanted.ui.settings.network.NetworkConfigScreen
+import com.chatgptlite.wanted.ui.settings.occupancy.Occupancy
+import com.chatgptlite.wanted.ui.settings.occupancy.OccupancyViewModel
+import com.chatgptlite.wanted.ui.settings.prompt.PromptSettingPage
+import com.chatgptlite.wanted.ui.settings.rover.RoverSettingsViewModel
+import com.chatgptlite.wanted.ui.settings.rover.SettingsScreen
+import com.chatgptlite.wanted.ui.settings.rover.TelemetryScreen
+import com.chatgptlite.wanted.ui.settings.rover.TelemetryViewModel
+import com.chatgptlite.wanted.ui.settings.terminal.TerminalScreen
+import com.chatgptlite.wanted.ui.settings.terminal.TerminalViewModel
 import com.chatgptlite.wanted.ui.theme.ChatGPTLiteTheme
 import com.quicinc.chatapp.ChatMessage
 import com.quicinc.chatapp.GenieWrapper
@@ -126,7 +133,6 @@ class MainActivity : ComponentActivity() {
                         genieResponse.value = ""
 
                         getGenieResponse(it) { responseToken ->
-                            // Append each token to genieResponse
                             runOnUiThread {
                                 genieResponse.value += responseToken
                                 Log.d("MainActivity", "Genie response so far: $genieResponse")
@@ -135,7 +141,6 @@ class MainActivity : ComponentActivity() {
 
                         val addr = "10.0.0.1"
                         val port = "8000"
-//                        processWhisperCommand(it, addr, port)
                     }
                 }
 
@@ -171,15 +176,11 @@ class MainActivity : ComponentActivity() {
 
         CoroutineScope(Dispatchers.IO).launch {
             while (true) {
-                delay(500) // Check for inactivity every 500ms
+                delay(500)
                 if (!record.isInProgress()) {
                     Log.d("foreground", "Recorder stopped. Restarting background recorder...")
                     isForegroundRecording.value = true
                     updateForegroundRecordingSignal(false)
-//                    delay(10000) // how long the popup will stay
-//                    micVisibleState.value = false
-//                    text.value = ""
-//                    break
                 }
             }
         }
@@ -218,46 +219,27 @@ class MainActivity : ComponentActivity() {
         sendBroadcast(intent)
     }
 
-    /**
-     * copyAssetsDir: Copies provided assets to output path
-     *
-     * @param inputAssetRelPath relative path to asset from asset root
-     * @param outputPath        output path to copy assets to
-     * @throws IOException
-     * @throws NullPointerException
-     */
     @Throws(IOException::class, NullPointerException::class)
     fun copyAssetsDir(inputAssetRelPath: String?, outputPath: String?) {
         val outputAssetPath = File(Paths.get(outputPath, inputAssetRelPath).toString())
 
         val subAssetList = this.assets.list(inputAssetRelPath!!)
         if (subAssetList!!.size == 0) {
-            // If file already present, skip copy.
             if (!outputAssetPath.exists()) {
                 copyFile(inputAssetRelPath, outputAssetPath)
             }
             return
         }
 
-        // Input asset is a directory, create directory if not present already.
         if (!outputAssetPath.exists()) {
             outputAssetPath.mkdirs()
         }
         for (subAssetName in subAssetList) {
-            // Copy content of sub-directory
             val input_sub_asset_path = Paths.get(inputAssetRelPath, subAssetName).toString()
-            // NOTE: Not to modify output path, relative asset path is being updated.
             copyAssetsDir(input_sub_asset_path, outputPath)
         }
     }
 
-    /**
-     * copyFile: Copies provided input file asset into output asset file
-     *
-     * @param inputFilePath   relative file path from asset root directory
-     * @param outputAssetFile output file to copy input asset file into
-     * @throws IOException
-     */
     @Throws(IOException::class)
     fun copyFile(inputFilePath: String?, outputAssetFile: File?) {
         val `in` = this.assets.open(inputFilePath!!)
@@ -293,8 +275,6 @@ class MainActivity : ComponentActivity() {
 
         lateinit var htpExtConfigPath: Path
         try {
-            // Get SoC model from build properties
-            // As of now, only Snapdragon Gen 3 and 8 Elite is supported.
             val supportedSocModel = HashMap<String, String>()
             supportedSocModel.putIfAbsent("SM8750", "qualcomm-snapdragon-8-elite.json")
             supportedSocModel.putIfAbsent("SM8650", "qualcomm-snapdragon-8-gen3.json")
@@ -309,14 +289,8 @@ class MainActivity : ComponentActivity() {
                 finish()
             }
 
-            // Copy assets to External cache
-            //  - <assets>/models
-            //      - has list of models with tokenizer.json, genie-config.json and model binaries
-            //  - <assets>/htp_config/
-            //      - has SM8750.json and SM8650.json and picked up according to device SOC Model at runtime.
             val externalDir = externalCacheDir!!.absolutePath
             try {
-                // Copy assets to External cache if not already present
                 copyAssetsDir("models", externalDir.toString())
                 copyAssetsDir("htp_config", externalDir.toString())
             } catch (e: IOException) {
@@ -329,13 +303,6 @@ class MainActivity : ComponentActivity() {
                 externalDir, "htp_config",
                 supportedSocModel[socModel]
             )
-//                val intent = Intent(this@MainActivity, Conversation::class.java)
-//                intent.putExtra(
-//                    Conversation.cConversationActivityKeyHtpConfig,
-//                    htpExtConfigPath.toString()
-//                )
-//                intent.putExtra(Conversation.cConversationActivityKeyModelName, "llama3_2_3b")
-//                startActivity(intent)
         } catch (e: java.lang.Exception) {
             val errorMsg = "Unexpected error occurred while running ChatApp:$e"
             Log.e("ChatApp", errorMsg)
@@ -348,34 +315,18 @@ class MainActivity : ComponentActivity() {
 
         val cWelcomeMessage = "Hi! How can I help you?"
         val cConversationActivityKeyHtpConfig = htpExtConfigPath.toString()
-        val cConversationActivityKeyModelName = "llama3_2_3b"
+        val cConversationActivityKeyModelName = "qwen2_5_7b_instruct"
 
         try {
-            // Make QNN libraries discoverable
             val nativeLibPath = applicationContext.applicationInfo.nativeLibraryDir
             Os.setenv("ADSP_LIBRARY_PATH", nativeLibPath, true)
             Os.setenv("LD_LIBRARY_PATH", nativeLibPath, true)
-
-            // Get information from MainActivity regarding
-            //  - Model to run
-            //  - HTP config to use
-//                val bundle = savedInstanceState
-//                if (bundle == null) {
-//                    Log.e("ChatApp", "Error getting additional info from bundle.")
-//                    Toast.makeText(
-//                        this,
-//                        "Unexpected error observed. Exiting app.",
-//                        Toast.LENGTH_LONG
-//                    ).show()
-//                    finish()
-//                }
 
             val htpExtensionsDir = cConversationActivityKeyHtpConfig
             val modelName = cConversationActivityKeyModelName
             val externalCacheDir = this.externalCacheDir!!.absolutePath.toString()
             val modelDir = Paths.get(externalCacheDir, "models", modelName).toString()
 
-            // Load Model
             genieWrapper = GenieWrapper(modelDir, htpExtensionsDir)
             Log.i("Chatbackend", "$modelName Loaded.")
         } catch (e: java.lang.Exception) {
@@ -385,34 +336,46 @@ class MainActivity : ComponentActivity() {
             finish()
         }
 
-//        getGenieResponse("test message") { responseToken ->
-//            Log.d("Chatbackend", "Genie response: $responseToken")
-//        }
-
-
-        //AudioService.start(this)
         setContentView(
             ComposeView(this).apply {
                 consumeWindowInsets = false
                 setContent {
                     val navController = rememberNavController()
                     val currentBackStack by navController.currentBackStackEntryFlow.collectAsState(initial = null)
-                    val currentRoute = currentBackStack?.destination?.route ?: NavRoute.ROVER_SETTINGS
+                    val currentRoute = currentBackStack?.destination?.route ?: NavRoute.VIDEO_STREAM
+
+                    // Activity-scoped ViewModels — survive page switches
+                    val controllerViewModel: VideoCamSettingsViewModel = viewModel()
+                    val statusViewModel: RoverSettingsViewModel = viewModel()
+
+                    // Initialize Controller feeds at startup (it's the start page)
+                    // Status feeds are initialized when the Status page is first opened
+                    LaunchedEffect(Unit) {
+                        controllerViewModel.initFeedsOnce()
+                    }
+
+                    // Main pages are Controller and Status
+                    val mainPages = listOf(NavRoute.VIDEO_STREAM, NavRoute.ROVER_SETTINGS)
+                    val isMainPage = currentRoute in mainPages
+                    val isSubPage = !isMainPage
+
                     val currentTitle = when (currentRoute) {
                         NavRoute.ROVER_SETTINGS -> "Status"
                         NavRoute.VIDEO_STREAM -> "Controller"
-                        NavRoute.ADVANCE -> "Advance"
-                        "terminal" -> "Terminal"
+                        NavRoute.TERMINAL -> "Terminal"
+                        NavRoute.PROMPT_SETTINGS -> "Prompt Settings"
+                        NavRoute.TELEMETRY -> "Telemetry"
+                        NavRoute.OCCUPANCY -> "Occupancy Map"
+                        NavRoute.NETWORK_CONFIG -> "Network Config"
                         else -> ""
                     }
-                    // Bottom navigation bar
-                    val bottomNavItems = listOf(
-                        NavRoute.VIDEO_STREAM,
-                        NavRoute.ADVANCE,
-                        NavRoute.ROVER_SETTINGS
-                    )
 
-                    // Intercepts back navigation when the drawer is open
+                    // Advance panel state
+                    var advancePanelOpen by remember { mutableStateOf(false) }
+
+                    // Occupancy map popup state (shared across pages)
+                    var occPopupVisible by remember { mutableStateOf(false) }
+
                     val scope = rememberCoroutineScope()
                     val focusManager = LocalFocusManager.current
 
@@ -421,7 +384,7 @@ class MainActivity : ComponentActivity() {
                     }
 
                     ChatGPTLiteTheme(darkTheme.value) {
-                        Box(modifier = Modifier.fillMaxSize()) { // 🔥 Outer Box controls layering manually
+                        Box(modifier = Modifier.fillMaxSize()) {
                             val animationFrames = listOf(
                                 R.drawable.mic_img_1,
                                 R.drawable.mic_img_2,
@@ -449,24 +412,29 @@ class MainActivity : ComponentActivity() {
                                             )
                                         },
                                         navigationIcon = {
-                                            if (currentRoute == "terminal") {
+                                            if (isSubPage) {
                                                 IconButton(onClick = { navController.navigateUp() }) {
                                                     Icon(
-                                                        imageVector = Icons.Default.ArrowBack, // This shows the "<" icon
+                                                        imageVector = Icons.Default.ArrowBack,
                                                         contentDescription = "Back",
                                                         tint = MaterialTheme.colorScheme.primary
                                                     )
                                                 }
+                                            } else {
+                                                // Battery indicator from real data
+                                                val batteryPct by statusViewModel.battery.collectAsState()
+                                                BatteryIndicator(batteryPct)
                                             }
                                         },
                                         actions = {
-                                            if (currentRoute != "terminal") {
+                                            if (isMainPage) {
+                                                // Hamburger menu to toggle advance overlay
                                                 IconButton(onClick = {
-                                                    navController.navigate(NavRoute.ADVANCE)
+                                                    advancePanelOpen = !advancePanelOpen
                                                 }) {
                                                     Icon(
-                                                        imageVector = Icons.Default.MoreHoriz,
-                                                        contentDescription = "More Settings",
+                                                        imageVector = Icons.Default.Menu,
+                                                        contentDescription = "Advance Menu",
                                                         tint = MaterialTheme.colorScheme.primary
                                                     )
                                                 }
@@ -479,12 +447,11 @@ class MainActivity : ComponentActivity() {
                                             containerColor = MaterialTheme.colorScheme.background
                                         )
                                     )
-
                                 },
                                 bottomBar = {
                                     BottomNavigationBar(
                                         navController = navController,
-                                        items = bottomNavItems,
+                                        currentRoute = currentRoute,
                                         onMicClick = {
                                             Log.d("MicButton", "Mic clicked!")
                                             startRecorder()
@@ -499,43 +466,48 @@ class MainActivity : ComponentActivity() {
                                 ) {
                                     NavHost(
                                         navController = navController,
-                                        startDestination = NavRoute.ROVER_SETTINGS
+                                        startDestination = NavRoute.VIDEO_STREAM
                                     ) {
-                                        composable(NavRoute.HOME) {
-                                            SettingsScreen(
-                                                mainViewModel = mainViewModel,
-                                                viewModel = viewModel<RoverSettingsViewModel>(),
-                                                onBackPressed = { navController.navigateUp() }
+                                        composable(NavRoute.VIDEO_STREAM) {
+                                            VideoStreamingSetting(
+                                                controllerViewModel,
+                                                onBackPressed = { navController.navigateUp() },
+                                                onOccMapClick = { occPopupVisible = true }
                                             )
                                         }
                                         composable(NavRoute.ROVER_SETTINGS) {
                                             SettingsScreen(
                                                 mainViewModel = mainViewModel,
-                                                viewModel = viewModel<RoverSettingsViewModel>(),
-                                                onBackPressed = { navController.navigateUp() }
-                                            )
-                                        }
-                                        composable(NavRoute.VIDEO_STREAM) {
-                                            VideoStreamingSetting(
-                                                viewModel<VideoCamSettingsViewModel>(),
-                                                onBackPressed = { navController.navigateUp() }
-                                            )
-                                        }
-                                        composable(NavRoute.ADVANCE) {
-                                            AdvanceScreen(
-                                                viewModel<AdvanceViewModel>(),
+                                                viewModel = statusViewModel,
                                                 onBackPressed = { navController.navigateUp() },
-                                                onTerminalClick = {
-                                                    navController.navigate("terminal")
-                                                },
-                                                onLLMSettingClick = {
-                                                    navController.navigate("llm_settings")
-                                                }
+                                                onOccMapClick = { occPopupVisible = true }
                                             )
                                         }
-                                        composable("terminal") {
+                                        composable(NavRoute.TERMINAL) {
                                             TerminalScreen(
                                                 viewModel = viewModel<TerminalViewModel>(),
+                                                onBackPressed = { navController.navigateUp() }
+                                            )
+                                        }
+                                        composable(NavRoute.PROMPT_SETTINGS) {
+                                            PromptSettingPage(
+                                                onBackPressed = { navController.navigateUp() }
+                                            )
+                                        }
+                                        composable(NavRoute.TELEMETRY) {
+                                            TelemetryScreen(
+                                                viewModel = viewModel(),
+                                                onBackPressed = { navController.navigateUp() }
+                                            )
+                                        }
+                                        composable(NavRoute.OCCUPANCY) {
+                                            Occupancy(
+                                                viewModel = viewModel<OccupancyViewModel>(),
+                                                onBackPressed = { navController.navigateUp() }
+                                            )
+                                        }
+                                        composable(NavRoute.NETWORK_CONFIG) {
+                                            NetworkConfigScreen(
                                                 onBackPressed = { navController.navigateUp() }
                                             )
                                         }
@@ -543,7 +515,42 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
 
-                            // MicPopup is placed OUTSIDE Scaffold, drawn on top
+                            // ===== Advance Overlay Panel =====
+                            if (advancePanelOpen) {
+                                // Scrim / backdrop
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(Color.Black.copy(alpha = 0.4f))
+                                        .clickable { advancePanelOpen = false }
+                                        .zIndex(14f)
+                                )
+                                // Panel
+                                AdvanceOverlayPanel(
+                                    onDismiss = { advancePanelOpen = false },
+                                    onItemClick = { route ->
+                                        advancePanelOpen = false
+                                        navController.navigate(route) {
+                                            launchSingleTop = true
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .padding(top = 56.dp, end = 12.dp)
+                                        .zIndex(15f)
+                                )
+                            }
+
+                            // ===== Occupancy Map Popup =====
+                            if (occPopupVisible) {
+                                OccupancyPopup(
+                                    bitmap = statusViewModel.occupancyBitmap.value
+                                        ?: controllerViewModel.occupancyBitmap.value,
+                                    onDismiss = { occPopupVisible = false }
+                                )
+                            }
+
+                            // ===== MicPopup =====
                             if (micVisibleState.value) {
                                 MicPopup(
                                     text = text,
@@ -558,7 +565,6 @@ class MainActivity : ComponentActivity() {
                                         micVisibleState.value = false
                                         isForegroundRecording.value = false
                                         updateForegroundRecordingSignal(false)
-                                        // Resume wake word detection
                                         voiceWakeupManager.resumeWakeWordDetection()
                                     },
                                     onCancel = {
@@ -567,22 +573,17 @@ class MainActivity : ComponentActivity() {
                                         micVisibleState.value = false
                                         isForegroundRecording.value = false
                                         updateForegroundRecordingSignal(false)
-                                        // Resume wake word detection
                                         voiceWakeupManager.resumeWakeWordDetection()
                                     }
                                 )
                             }
                         }
                     }
-
-
                 }
             }
         )
 
-        // Initialize voice wakeup manager with callback
         voiceWakeupManager = VoiceWakeupManager(this) {
-            // Callback when wake word is detected - trigger startRecorder()
             Log.d(TAG, "Wake word callback triggered, starting recorder...")
             startRecorder()
         }
@@ -636,10 +637,13 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+
+// ==================== Bottom Navigation (2 tabs + mic FAB) ====================
+
 @Composable
 fun BottomNavigationBar(
     navController: NavHostController,
-    items: List<String>,
+    currentRoute: String,
     onMicClick: () -> Unit
 ) {
     Box(
@@ -652,55 +656,75 @@ fun BottomNavigationBar(
             tonalElevation = 0.dp,
             modifier = Modifier.align(Alignment.BottomCenter)
         ) {
-            val currentRoute by navController.currentBackStackEntryFlow
-                .map { it?.destination?.route ?: "Status" }
-                .collectAsState(initial = "Status")
-
-            items.forEach { route ->
-                val isSelected = currentRoute == route
-                NavigationBarItem(
-                    selected = isSelected,
-                    onClick = {
-                        if (route != NavRoute.ADVANCE && !isSelected) {
-                            navController.navigate(route) {
-                                launchSingleTop = true
-                                restoreState = true
-                            }
+            // Controller tab
+            val controllerSelected = currentRoute == NavRoute.VIDEO_STREAM
+            NavigationBarItem(
+                selected = controllerSelected,
+                onClick = {
+                    if (!controllerSelected) {
+                        navController.navigate(NavRoute.VIDEO_STREAM) {
+                            launchSingleTop = true
+                            restoreState = true
                         }
-                    },
-                    icon = {
-                        if (route != NavRoute.ADVANCE) {
-                            Icon(
-                                imageVector = when (route) {
-                                    NavRoute.VIDEO_STREAM -> Icons.Default.ControlCamera
-                                    NavRoute.ROVER_SETTINGS -> Icons.Default.Home
-                                    NavRoute.ADVANCE -> Icons.Default.MoreHoriz
-                                    else -> Icons.Default.Help
-                                },
-                                contentDescription = route,
-                                tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    },
-                    label = {
-                        if (route != NavRoute.ADVANCE) {
-                            Text(
-                                text = route,
-                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = MaterialTheme.colorScheme.primary,
-                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        selectedTextColor = MaterialTheme.colorScheme.primary,
-                        unselectedTextColor = MaterialTheme.colorScheme.onSurface,
-                        indicatorColor = MaterialTheme.colorScheme.background
+                    }
+                },
+                icon = {
+                    Icon(
+                        imageVector = Icons.Default.ControlCamera,
+                        contentDescription = "Controller",
+                        tint = if (controllerSelected) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                },
+                label = {
+                    Text(
+                        text = "Controller",
+                        color = if (controllerSelected) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                },
+                colors = NavigationBarItemDefaults.colors(
+                    indicatorColor = MaterialTheme.colorScheme.background
                 )
-            }
+            )
+
+            // Spacer for mic button
+            Spacer(modifier = Modifier.weight(1f))
+
+            // Status tab
+            val statusSelected = currentRoute == NavRoute.ROVER_SETTINGS
+            NavigationBarItem(
+                selected = statusSelected,
+                onClick = {
+                    if (!statusSelected) {
+                        navController.navigate(NavRoute.ROVER_SETTINGS) {
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
+                },
+                icon = {
+                    Icon(
+                        imageVector = Icons.Default.Home,
+                        contentDescription = "Status",
+                        tint = if (statusSelected) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                },
+                label = {
+                    Text(
+                        text = "Status",
+                        color = if (statusSelected) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                },
+                colors = NavigationBarItemDefaults.colors(
+                    indicatorColor = MaterialTheme.colorScheme.background
+                )
+            )
         }
 
+        // Floating mic button in center
         Box(
             modifier = Modifier
                 .align(Alignment.TopCenter)
@@ -712,12 +736,198 @@ fun BottomNavigationBar(
 }
 
 
-@Preview(showBackground = true)
+// ==================== Battery Indicator ====================
+
 @Composable
-fun DefaultPreview() {
-    ChatGPTLiteTheme {
+fun BatteryIndicator(batteryPct: Int = 0) {
+    val color = when {
+        batteryPct >= 50 -> MaterialTheme.colorScheme.primary
+        batteryPct >= 25 -> Color(0xFFFFEB3B)
+        batteryPct > 0 -> Color(0xFFF44336)
+        else -> Color(0xFF888888)
+    }
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.padding(start = 8.dp)
+    ) {
+        Icon(
+            imageVector = Icons.Default.BatteryFull,
+            contentDescription = "Battery",
+            tint = color,
+            modifier = Modifier.size(20.dp)
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(
+            text = if (batteryPct > 0) "$batteryPct%" else "--",
+            color = color,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold
+        )
     }
 }
+
+
+// ==================== Advance Overlay Panel ====================
+
+data class AdvanceItem(
+    val title: String,
+    val description: String,
+    val route: String
+)
+
+@Composable
+fun AdvanceOverlayPanel(
+    onDismiss: () -> Unit,
+    onItemClick: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val items = listOf(
+        AdvanceItem("Terminal", "Send command directly to Rover", NavRoute.TERMINAL),
+        AdvanceItem("Prompt Settings", "Configure system prompt for AI", NavRoute.PROMPT_SETTINGS)
+    )
+
+    Card(
+        modifier = modifier.width(280.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFF1A1C1B)
+        ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+    ) {
+        Column {
+            // Header
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Advance",
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp
+                )
+                Text(
+                    text = "\u00D7",
+                    color = Color(0xFF888888),
+                    fontSize = 22.sp,
+                    modifier = Modifier.clickable { onDismiss() }
+                )
+            }
+
+            Divider(color = Color.White.copy(alpha = 0.08f), thickness = 1.dp)
+
+            // Items
+            Column(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items.forEach { item ->
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(
+                                1.dp,
+                                MaterialTheme.colorScheme.primary,
+                                RoundedCornerShape(8.dp)
+                            )
+                            .clickable { onItemClick(item.route) }
+                            .padding(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = item.title,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp
+                                )
+                                Text(
+                                    text = item.description,
+                                    color = Color(0xFFAAAAAA),
+                                    fontSize = 11.sp
+                                )
+                            }
+                            Text(
+                                text = "\u2192",
+                                color = MaterialTheme.colorScheme.primary,
+                                fontSize = 20.sp
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+    }
+}
+
+
+// ==================== Occupancy Map Popup ====================
+
+@Composable
+fun OccupancyPopup(bitmap: android.graphics.Bitmap?, onDismiss: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.85f))
+            .clickable { onDismiss() }
+            .zIndex(20f),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.9f)
+                    .aspectRatio(1f)
+                    .border(
+                        2.dp,
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.4f),
+                        RoundedCornerShape(12.dp)
+                    )
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color.Black),
+                contentAlignment = Alignment.Center
+            ) {
+                if (bitmap != null) {
+                    Image(
+                        bitmap = bitmap.asImageBitmap(),
+                        contentDescription = "Occupancy Map",
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(text = "\uD83D\uDDFA", fontSize = 48.sp)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Loading occupancy map...",
+                            color = Color(0xFF888888),
+                            fontSize = 14.sp
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = "Tap anywhere to close",
+                color = Color(0xFF666666),
+                fontSize = 11.sp
+            )
+        }
+    }
+}
+
+
+// ==================== Mic Button ====================
 
 @Composable
 fun MicButton(
@@ -747,6 +957,9 @@ fun MicButton(
         )
     }
 }
+
+
+// ==================== Mic Popup ====================
 
 @Composable
 fun MicPopup(
@@ -779,7 +992,7 @@ fun MicPopup(
         if (genieResponse.value.isBlank() || genieResponse.value.contains("sorry", ignoreCase = true)) return@LaunchedEffect
 
         val lastSnapshot = genieResponse.value
-        delay(500) // wait a bit to see if it's done updating
+        delay(500)
         if (genieResponse.value == lastSnapshot) {
             showConfirmButtons.value = true
         }
@@ -788,8 +1001,6 @@ fun MicPopup(
     LaunchedEffect(text.value) {
         if (genieResponse.value.contains("sorry", ignoreCase = true)){
             delay(3000)
-//        delay(5000)
-//        if (text.value.isBlank()) {
             text.value = ""
             genieResponse.value = ""
             onCancel()
@@ -822,7 +1033,7 @@ fun MicPopup(
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 190.dp), // above the mic animation
+                .padding(bottom = 190.dp),
             verticalArrangement = Arrangement.Bottom
         ) {
             if (text.value.isNotEmpty()) {
@@ -866,13 +1077,6 @@ fun MicPopup(
                         )
                     }
                 }
-//               else {
-//                    LaunchedEffect(Unit) {
-//                        delay(5000)
-//                        text.value = ""
-//                        genieResponse.value = ""
-//                    }
-//                }
             }
         }
     }
@@ -889,7 +1093,7 @@ fun MessageBubble(
     ) {
         Box(
             modifier = Modifier
-                .widthIn(max = 280.dp) // limit width to look clean
+                .widthIn(max = 280.dp)
                 .align(alignment)
                 .background(
                     color = Color.Black,

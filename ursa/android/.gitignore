@@ -15,4 +15,5 @@
 .cxx
 local.properties
 /dist
-/src/main/assets/models/llama3_2_3b/**
+/ChatApp/src/main/assets/models/llama3_2_3b/**
+/ChatApp/src/main/assets/models/qwen2_5_7b_instruct/**

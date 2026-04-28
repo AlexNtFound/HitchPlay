@@ -126,7 +126,7 @@ public class MainActivity extends AppCompatActivity {
                 public void onClick(View view) {
                     Intent intent = new Intent(MainActivity.this, Conversation.class);
                     intent.putExtra(Conversation.cConversationActivityKeyHtpConfig, htpExtConfigPath.toString());
-                    intent.putExtra(Conversation.cConversationActivityKeyModelName, "llama3_2_3b");
+                    intent.putExtra(Conversation.cConversationActivityKeyModelName, "qwen2_5_7b_instruct");
                     startActivity(intent);
                 }
             });
