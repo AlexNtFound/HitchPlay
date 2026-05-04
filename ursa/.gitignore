@@ -32,8 +32,8 @@ MANIFEST
 *.manifest
 *.spec
 **/.gradle
-**/gradle
-**/gradlew*
+# Note: NOT excluding `gradle/` or `gradlew*` — those are the Gradle wrapper, which
+# MUST be committed so collaborators can build without installing Gradle separately.
 
 # Installer logs
 pip-log.txt
