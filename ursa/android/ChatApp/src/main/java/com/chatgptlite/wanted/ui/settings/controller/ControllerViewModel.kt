@@ -22,6 +22,7 @@ import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
 import java.io.ByteArrayInputStream
+import com.chatgptlite.wanted.ui.settings.rover.RoverSettingsViewModel
 
 class VideoCamSettingsViewModel(application: Application) : AndroidViewModel(application) {
     private val client = OkHttpClient()
@@ -36,8 +37,7 @@ class VideoCamSettingsViewModel(application: Application) : AndroidViewModel(app
     private var linefollow_webSocket: WebSocket? = null
     private var navstatus_webSocket: WebSocket? = null
 
-    private val control_client = OkHttpClient()
-    private val base_client = OkHttpClient()
+    // Removed separate control_client / base_client — use shared `client` for all WebSockets
     private val WEBSOCKET_IPADDRESS = "10.0.0.1"
     private val WEBSOCKET_PORT = "9090"
 
@@ -75,10 +75,19 @@ class VideoCamSettingsViewModel(application: Application) : AndroidViewModel(app
 
         val total = connectionStatus.size
         val connected = connectionStatus.values.count { it.value }
+
+        // Push partial connection progress to Status ViewModel
+        if (connected == 1) {
+            // First topic connected — rover is reachable
+            statusViewModel?.updateConnectionState(false)
+        }
+
         if (connected == total && !allConnected.value) {
             allConnected.value = true
             toastMessage.value = "All systems ready — $total/$total topics connected"
             Log.i("WS-Connect", "ALL $total topics connected!")
+            // Notify Status ViewModel that all connections are ready
+            statusViewModel?.updateConnectionState(true)
         }
     }
 
@@ -96,11 +105,18 @@ class VideoCamSettingsViewModel(application: Application) : AndroidViewModel(app
     private var homeYaw = 0.0
     val homeIsCustom = mutableStateOf(false)
 
-    // Current robot pose (from /pose topic — same source as Status page)
+    // Current robot pose (from /pose topic — shared with Status page)
     val currentRobotX = mutableStateOf(0.0)
     val currentRobotY = mutableStateOf(0.0)
     val currentRobotYaw = mutableStateOf(0.0)
     private var pose_webSocket: WebSocket? = null
+
+    // Reference to Status ViewModel — set once from MainActivity to pipe pose data
+    private var statusViewModel: RoverSettingsViewModel? = null
+
+    fun linkStatusViewModel(vm: RoverSettingsViewModel) {
+        statusViewModel = vm
+    }
 
     // Waypoint list (recorded poses as JSON-serializable data)
     private val waypoints = mutableListOf<WaypointEntry>()
@@ -131,7 +147,7 @@ class VideoCamSettingsViewModel(application: Application) : AndroidViewModel(app
         val wsUrl = "ws://$WEBSOCKET_IPADDRESS:$WEBSOCKET_PORT"
 
         // P1: /cmd_vel — joystick driving, must work immediately
-        vel_webSocket = control_client.newWebSocket(
+        vel_webSocket = client.newWebSocket(
             Request.Builder().url(wsUrl).build(),
             RoverWebSocketListener("/cmd_vel",
                 onMessageReceived = { Log.d("WebSocket", "cmd_vel received") },
@@ -141,7 +157,7 @@ class VideoCamSettingsViewModel(application: Application) : AndroidViewModel(app
         )
 
         // P2: /e_stop — safety critical, must be ready before driving
-        estop_webSocket = OkHttpClient().newWebSocket(
+        estop_webSocket = client.newWebSocket(
             Request.Builder().url(wsUrl).build(),
             RoverWebSocketListener("/e_stop",
                 onMessageReceived = { Log.d("WebSocket", "e_stop received") },
@@ -151,7 +167,7 @@ class VideoCamSettingsViewModel(application: Application) : AndroidViewModel(app
         )
 
         // P3: /pose — robot position for Set Home + Recording
-        pose_webSocket = OkHttpClient().newWebSocket(
+        pose_webSocket = client.newWebSocket(
             Request.Builder().url(wsUrl).build(),
             RoverWebSocketListener("/pose",
                 onMessageReceived = ::handlePoseMessage,
@@ -161,7 +177,7 @@ class VideoCamSettingsViewModel(application: Application) : AndroidViewModel(app
         )
 
         // P4: /nav_status — status strip feedback
-        navstatus_webSocket = OkHttpClient().newWebSocket(
+        navstatus_webSocket = client.newWebSocket(
             Request.Builder().url(wsUrl).build(),
             RoverWebSocketListener("/nav_status",
                 onMessageReceived = ::handleNavStatus,
@@ -171,7 +187,7 @@ class VideoCamSettingsViewModel(application: Application) : AndroidViewModel(app
         )
 
         // P5: /goal_pose — navigation goals (Go Home)
-        base_webSocket = base_client.newWebSocket(
+        base_webSocket = client.newWebSocket(
             Request.Builder().url(wsUrl).build(),
             RoverWebSocketListener("/goal_pose",
                 onMessageReceived = { Log.d("WebSocket", "goal_pose received") },
@@ -181,7 +197,7 @@ class VideoCamSettingsViewModel(application: Application) : AndroidViewModel(app
         )
 
         // P6: /cancel_nav — cancel navigation
-        cancel_webSocket = OkHttpClient().newWebSocket(
+        cancel_webSocket = client.newWebSocket(
             Request.Builder().url(wsUrl).build(),
             RoverWebSocketListener("/cancel_nav",
                 onMessageReceived = { Log.d("WebSocket", "cancel_nav received") },
@@ -191,7 +207,7 @@ class VideoCamSettingsViewModel(application: Application) : AndroidViewModel(app
         )
 
         // P7: /waypoint_replay — replay recorded paths
-        waypoint_webSocket = OkHttpClient().newWebSocket(
+        waypoint_webSocket = client.newWebSocket(
             Request.Builder().url(wsUrl).build(),
             RoverWebSocketListener("/waypoint_replay",
                 onMessageReceived = { Log.d("WebSocket", "waypoint_replay received") },
@@ -201,7 +217,7 @@ class VideoCamSettingsViewModel(application: Application) : AndroidViewModel(app
         )
 
         // P8: /line_follow_cmd — line following
-        linefollow_webSocket = OkHttpClient().newWebSocket(
+        linefollow_webSocket = client.newWebSocket(
             Request.Builder().url(wsUrl).build(),
             RoverWebSocketListener("/line_follow_cmd",
                 onMessageReceived = { Log.d("WebSocket", "line_follow_cmd received") },
@@ -239,6 +255,9 @@ class VideoCamSettingsViewModel(application: Application) : AndroidViewModel(app
             currentRobotY.value = y
             currentRobotYaw.value = yaw
 
+            // Pipe pose data to Status page — eliminates duplicate /pose WebSocket
+            statusViewModel?.updatePoseFromController(x, y, qz)
+
             if (!poseReceived.value) {
                 poseReceived.value = true
                 Log.i("Pose", "First pose received! x=${"%.2f".format(x)}, y=${"%.2f".format(y)}")
@@ -267,6 +286,9 @@ class VideoCamSettingsViewModel(application: Application) : AndroidViewModel(app
 
             navStatus.value = newStatus
             navStatusDetail.value = detail
+
+            // Pipe to Status page so it reflects real rover activity
+            statusViewModel?.updateNavState(newStatus)
 
             when (newStatus) {
                 "replaying" -> {
@@ -771,9 +793,7 @@ class VideoCamSettingsViewModel(application: Application) : AndroidViewModel(app
             onFailed = ::onTopicFailed
         )
 
-        val client = OkHttpClient()
         client.newWebSocket(request, listener)
-        client.dispatcher.executorService.shutdown()
     }
 
     private fun updateOccupancyBitmap(dataArray: JSONArray, width: Int, height: Int) {

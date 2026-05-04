@@ -20,6 +20,7 @@ class OccupancyViewModel(application: Application) : AndroidViewModel(applicatio
 
     private val WEBSOCKET_IPADDRESS = "10.0.0.1"
     private val WEBSOCKET_PORT = "9090"
+    private val client = OkHttpClient()
     var occupancyBitmap = mutableStateOf<Bitmap?>(null)
 
     fun startOccupancyWebSocket() {
@@ -44,9 +45,7 @@ class OccupancyViewModel(application: Application) : AndroidViewModel(applicatio
             }
         }
 
-        val client = OkHttpClient()
         client.newWebSocket(request, listener)
-        client.dispatcher.executorService.shutdown()
 
     }
 

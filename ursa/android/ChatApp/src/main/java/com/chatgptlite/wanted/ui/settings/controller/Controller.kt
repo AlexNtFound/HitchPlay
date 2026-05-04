@@ -293,7 +293,7 @@ fun EStopButton(viewModel: VideoCamSettingsViewModel) {
         contentAlignment = Alignment.Center
     ) {
         Text(
-            text = if (isActive) "E-STOP ACTIVE" else "E-STOP",
+            text = if (isActive) "Cancel E-STOP" else "Activate E-STOP",
             color = textColor,
             fontWeight = FontWeight.Bold,
             style = MaterialTheme.typography.bodyLarge

@@ -348,10 +348,11 @@ class MainActivity : ComponentActivity() {
                     val controllerViewModel: VideoCamSettingsViewModel = viewModel()
                     val statusViewModel: RoverSettingsViewModel = viewModel()
 
-                    // Initialize Controller feeds at startup (it's the start page)
-                    // Status feeds are initialized when the Status page is first opened
+                    // Initialize all feeds at startup — Controller and Status both pre-connect
                     LaunchedEffect(Unit) {
+                        controllerViewModel.linkStatusViewModel(statusViewModel)
                         controllerViewModel.initFeedsOnce()
+                        statusViewModel.initFeedsOnce(mainViewModel)
                     }
 
                     // Main pages are Controller and Status
@@ -739,12 +740,13 @@ fun BottomNavigationBar(
 // ==================== Battery Indicator ====================
 
 @Composable
-fun BatteryIndicator(batteryPct: Int = 0) {
+fun BatteryIndicator(batteryPct: Int? = null) {
     val color = when {
+        batteryPct == null -> Color(0xFF888888)     // No data yet
         batteryPct >= 50 -> MaterialTheme.colorScheme.primary
         batteryPct >= 25 -> Color(0xFFFFEB3B)
         batteryPct > 0 -> Color(0xFFF44336)
-        else -> Color(0xFF888888)
+        else -> Color(0xFF888888)                   // 0% — critical
     }
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -758,7 +760,7 @@ fun BatteryIndicator(batteryPct: Int = 0) {
         )
         Spacer(modifier = Modifier.width(4.dp))
         Text(
-            text = if (batteryPct > 0) "$batteryPct%" else "--",
+            text = if (batteryPct != null) "$batteryPct%" else "--",
             color = color,
             fontSize = 11.sp,
             fontWeight = FontWeight.SemiBold

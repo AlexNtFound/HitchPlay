@@ -75,10 +75,8 @@ class TelemetryViewModel(application: Application) : AndroidViewModel(applicatio
             }
         }
 
-        val client = OkHttpClient()
         val webSocket = client.newWebSocket(request, listener)
         webSockets.add(webSocket) // Add to list
-        client.dispatcher.executorService.shutdown()
     }
 
     fun startCoordinatesWebSocket() {
@@ -93,10 +91,8 @@ class TelemetryViewModel(application: Application) : AndroidViewModel(applicatio
             // Handle the message here, e.g., parse it, update UI, etc.
         }
 
-        val client = OkHttpClient()
         val webSocket = client.newWebSocket(request, listener)
         webSockets.add(webSocket) // Add to list
-        client.dispatcher.executorService.shutdown()
     }
 
     fun startHeadingWebSocket() {
@@ -111,10 +107,8 @@ class TelemetryViewModel(application: Application) : AndroidViewModel(applicatio
             // Handle the message here, e.g., parse it, update UI, etc.
         }
 
-        val client = OkHttpClient()
         val webSocket = client.newWebSocket(request, listener)
         webSockets.add(webSocket) // Add to list
-        client.dispatcher.executorService.shutdown()
     }
 
     fun startBatteryWebSocket() {
@@ -129,10 +123,8 @@ class TelemetryViewModel(application: Application) : AndroidViewModel(applicatio
             // Handle the message here, e.g., parse it, update UI, etc.
         }
 
-        val client = OkHttpClient()
         val webSocket = client.newWebSocket(request, listener)
         webSockets.add(webSocket) // Add to list
-        client.dispatcher.executorService.shutdown()
     }
 
 
@@ -150,13 +142,11 @@ class TelemetryViewModel(application: Application) : AndroidViewModel(applicatio
     fun closeAllConnections() {
         webSockets.forEach { it.close(1000, "Closed all connections") }
         webSockets.clear()
-        client.dispatcher.executorService.shutdown()
     }
 
     override fun onCleared() {
         super.onCleared()
-        closeAllConnections() // Ensure WebSocket is closed when ViewModel is cleared
-        client.dispatcher.executorService.shutdown()
+        closeAllConnections()
     }
 
     fun sendPing(ipAddress: String) {

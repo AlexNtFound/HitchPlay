@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HitchPlay App Prototype</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0e0e0e; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; display: flex; justify-content: center; padding: 20px; color: #e0e0e0; }
+
+.phone { width: 393px; height: 852px; background: #1A1C1B; border-radius: 44px; border: 3px solid #333; overflow: hidden; position: relative; display: flex; flex-direction: column; }
+.statusbar { height: 54px; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; flex-shrink: 0; }
+.notch { width: 126px; height: 34px; background: #000; border-radius: 0 0 18px 18px; }
+.home-bar { height: 20px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.home-bar div { width: 134px; height: 5px; background: #555; border-radius: 3px; }
+
+/* Top-right settings button (replaces hamburger) */
+.settings-btn { position: absolute; top: 58px; right: 16px; z-index: 5; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 8px; }
+.settings-btn:hover { background: rgba(255,255,255,0.06); }
+.settings-btn svg { width: 22px; height: 22px; fill: #59FF00; }
+
+/* Content area */
+.content { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
+.page { display: none; flex-direction: column; flex: 1; padding: 8px 16px 8px; overflow-y: auto; }
+.page.active { display: flex; }
+.page-title { text-align: center; font-size: 16px; font-weight: 600; color: #59FF00; padding: 8px 0; margin-bottom: 4px; }
+
+/* Shared */
+.gradient-block { background: linear-gradient(135deg, rgba(175,253,134,0.25), rgba(122,138,128,0.25)); border-radius: 8px; text-align: center; }
+.gradient-block .block-title { color: #fff; font-size: 12px; padding: 8px 0; }
+.gradient-block .block-divider { height: 0.5px; background: rgba(255,255,255,0.5); }
+.gradient-block .block-value { color: #59FF00; font-size: 16px; font-weight: 700; padding: 12px 0; }
+.video-box { width: 100%; background: #000; border-radius: 8px; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; color: #666; font-size: 13px; }
+.occ-mini { position: absolute; bottom: 8px; right: 8px; width: 70px; height: 70px; background: rgba(255,0,0,0.3); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 7px; color: #fff; border: 1px solid rgba(255,255,255,0.2); }
+.occ-box { aspect-ratio: 1; background: #000; border-radius: 8px; border: 1px solid rgba(89,255,0,0.3); display: flex; align-items: center; justify-content: center; color: #888; font-size: 11px; }
+
+/* Controller */
+.status-strip { display: flex; align-items: center; gap: 6px; padding: 6px 10px; background: #2A2E2E; border-radius: 8px; }
+.sdot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.status-strip .lbl { font-size: 11px; color: #fff; }
+.status-strip .spd { margin-left: auto; font-size: 10px; color: #aaa; font-family: monospace; }
+.estop-btn { width: 100%; padding: 12px; border-radius: 8px; text-align: center; font-weight: 700; font-size: 15px; cursor: pointer; transition: all 0.15s; border: 1px solid rgba(244,67,54,0.5); background: rgba(244,67,54,0.15); color: #ef5350; }
+.estop-btn.on { background: rgba(244,67,54,0.6); color: #fff; border-color: #f44336; }
+.sec-label { font-size: 9px; color: #555; text-transform: uppercase; letter-spacing: 1.5px; text-align: center; margin: 2px 0; }
+.act-row { display: flex; gap: 6px; }
+.act-btn { flex: 1; padding: 8px 2px; border-radius: 8px; text-align: center; cursor: pointer; transition: all 0.12s; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.act-btn:active { transform: scale(0.95); }
+.act-btn .ic { font-size: 14px; font-weight: 700; }
+.act-btn .lb { font-size: 10px; }
+.nav-btn { border: 1px solid rgba(33,150,243,0.4); background: rgba(33,150,243,0.1); color: #64b5f6; }
+.cancel-btn { border: 1px solid rgba(255,152,0,0.4); background: rgba(255,152,0,0.08); color: #ffb74d; }
+.rec-btn { border: 1px solid rgba(244,67,54,0.4); background: rgba(244,67,54,0.08); color: #ef9a9a; }
+.rec-btn.on { background: rgba(244,67,54,0.35); border-color: #f44336; color: #fff; }
+.auto-btn { border: 1px solid rgba(76,175,80,0.4); background: rgba(76,175,80,0.08); color: #81c784; }
+.auto-btn.on { background: rgba(76,175,80,0.35); border-color: #4caf50; color: #fff; }
+.joy-area { display: flex; justify-content: space-evenly; gap: 8px; padding: 4px; }
+.joy-wrap { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.joy { width: 140px; height: 140px; border-radius: 50%; border: 2px solid #59FF00; background: #000; position: relative; display: flex; align-items: center; justify-content: center; }
+.joy .thumb { width: 36px; height: 36px; border-radius: 50%; background: #59FF00; }
+.joy .ar { position: absolute; color: #59FF00; font-size: 16px; opacity: 0.6; }
+.joy .ar.u { top: 10px; } .joy .ar.d { bottom: 10px; } .joy .ar.l { left: 10px; } .joy .ar.r { right: 10px; }
+.joy-lbl { font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: 1px; }
+.spd-row { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 4px 0; }
+.spd-row .slbl { font-size: 11px; color: #aaa; }
+.spd-btn { width: 28px; height: 28px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.06); color: #fff; font-size: 16px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.spd-btn:active { background: rgba(255,255,255,0.15); }
+.spd-val { font-family: monospace; font-size: 12px; color: #59FF00; font-weight: 700; width: 32px; text-align: center; }
+.spd-gap { width: 16px; }
+
+/* Status page — 2-column flex so columns match total height */
+.tele-grid { display: flex; gap: 8px; flex: 1; }
+.tele-col { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+.state-desc { font-size: 12px; color: #fff; padding-bottom: 10px; }
+
+/* Advance page */
+.adv-box { border: 1px solid #59FF00; border-radius: 8px; padding: 16px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+.adv-box:hover { background: rgba(89,255,0,0.05); }
+.adv-title { color: #59FF00; font-size: 15px; font-weight: 700; }
+.adv-desc { color: #aaa; font-size: 13px; margin-top: 2px; }
+.adv-arrow { color: #59FF00; font-size: 20px; }
+
+/* Bottom Nav Bar — 2 tabs + center mic */
+.bottom-nav { height: 64px; background: #1A1C1B; border-top: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: space-around; flex-shrink: 0; position: relative; padding: 0 24px; }
+.bnav-item { display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; padding: 6px 24px; border-radius: 12px; color: #666; font-size: 10px; transition: color 0.15s; }
+.bnav-item:hover { color: #aaa; }
+.bnav-item.active { color: #59FF00; }
+.bnav-spacer { width: 64px; } /* gap for mic button */
+.mic-fab { position: absolute; top: -24px; left: 50%; transform: translateX(-50%); width: 52px; height: 52px; border-radius: 50%; background: linear-gradient(135deg, rgba(175,253,134,0.25), rgba(122,138,128,0.25)); border: 1px solid rgba(89,255,0,0.4); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.15s; }
+.mic-fab:active { transform: translateX(-50%) scale(0.92); }
+
+/* Mic Popup — full screen voice UI with chat history */
+.mic-overlay { position: absolute; inset: 0; background: rgba(10,10,10,0.95); z-index: 20; display: none; flex-direction: column; }
+.mic-overlay.open { display: flex; }
+.mic-header { padding: 60px 16px 12px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+.mic-header-title { color: #59FF00; font-size: 16px; font-weight: 600; }
+.mic-close { color: #aaa; font-size: 24px; cursor: pointer; padding: 4px 8px; }
+.mic-close:hover { color: #fff; }
+
+.chat-history { flex: 1; overflow-y: auto; padding: 0 16px 12px; display: flex; flex-direction: column; gap: 8px; }
+.msg { max-width: 82%; padding: 10px 14px; border-radius: 16px; font-size: 13px; line-height: 1.5; }
+.msg.bot { background: #22252A; color: #FFFFF2; align-self: flex-start; border-bottom-left-radius: 4px; }
+.msg.user { background: #E2F0E9; color: #3D3D4E; align-self: flex-end; border-bottom-right-radius: 4px; }
+
+.mic-bottom { flex-shrink: 0; display: flex; flex-direction: column; align-items: center; padding: 12px 16px 32px; gap: 10px; }
+.mic-animation { width: 80px; height: 80px; border-radius: 50%; background: radial-gradient(circle, rgba(89,255,0,0.3) 0%, rgba(89,255,0,0.05) 70%, transparent 100%); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.mic-animation.listening { animation: mic-pulse 1.5s ease-in-out infinite; }
+.mic-animation::after { content: ''; width: 40px; height: 40px; border-radius: 50%; background: rgba(89,255,0,0.2); }
+@keyframes mic-pulse { 0%,100% { transform: scale(1); opacity: 0.8; } 50% { transform: scale(1.15); opacity: 1; } }
+.mic-status { color: #59FF00; font-size: 13px; min-height: 18px; }
+.mic-actions { display: flex; gap: 12px; }
+.mic-action-btn { padding: 8px 24px; border-radius: 20px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.mic-send-btn { background: #59FF00; color: #000; display: none; }
+.mic-cancel-btn { background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(255,255,255,0.2); }
+
+/* Advance overlay panel — slides from top-right */
+.advance-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.4); z-index: 14; display: none; }
+.advance-overlay.open { display: block; }
+.advance-panel { position: absolute; top: 54px; right: 12px; width: 280px; background: #1A1C1B; border: 1px solid rgba(89,255,0,0.25); border-radius: 12px; z-index: 15; transform: scale(0.95) translateY(-10px); opacity: 0; pointer-events: none; transition: transform 0.2s ease, opacity 0.2s ease; box-shadow: 0 8px 32px rgba(0,0,0,0.5); }
+.advance-panel.open { transform: scale(1) translateY(0); opacity: 1; pointer-events: auto; }
+.adv-panel-header { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px 10px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+.adv-panel-title { color: #59FF00; font-size: 15px; font-weight: 700; }
+.adv-panel-close { color: #888; font-size: 22px; cursor: pointer; padding: 0 4px; line-height: 1; }
+.adv-panel-close:hover { color: #fff; }
+.adv-panel-items { padding: 8px 12px 12px; display: flex; flex-direction: column; gap: 8px; }
+.adv-panel-items .adv-box { padding: 12px; }
+.adv-panel-items .adv-title { font-size: 13px; }
+.adv-panel-items .adv-desc { font-size: 11px; }
+
+/* Sub-page header with back button */
+.sub-header { display: flex; align-items: center; gap: 12px; padding: 4px 0; }
+.back-btn { color: #59FF00; font-size: 22px; cursor: pointer; padding: 4px 8px; border-radius: 8px; line-height: 1; }
+.back-btn:hover { background: rgba(255,255,255,0.06); }
+.cursor-blink { animation: blink 1s step-end infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+
+/* Occupancy Map popup overlay */
+.occ-popup-overlay { position: absolute; inset: 0; z-index: 20; background: rgba(0,0,0,0.85); display: none; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; }
+.occ-popup-overlay.open { display: flex; }
+.occ-popup-content { width: 90%; aspect-ratio: 1; background: #000; border: 2px solid rgba(89,255,0,0.4); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #888; font-size: 14px; flex-direction: column; gap: 8px; }
+.occ-popup-content div { font-size: 48px; }
+.occ-popup-hint { color: #666; font-size: 11px; margin-top: 12px; }
+
+/* Battery indicator — top-left, visible on main pages */
+.battery-indicator { position: absolute; top: 58px; left: 16px; z-index: 5; display: flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 8px; background: rgba(26,28,27,0.8); }
+
+/* Toast / Snackbar */
+.toast { position: absolute; bottom: 90px; left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 10px 20px; border-radius: 20px; font-size: 12px; z-index: 25; opacity: 0; transition: opacity 0.3s; pointer-events: none; white-space: nowrap; max-width: 90%; text-align: center; }
+.toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div class="phone">
+  <div class="statusbar"><div class="notch"></div></div>
+
+  <!-- Top-left battery indicator -->
+  <div class="battery-indicator" id="batteryInd">
+    <svg width="20" height="12" viewBox="0 0 24 14" fill="none" style="vertical-align:middle;">
+      <rect x="0.5" y="0.5" width="20" height="13" rx="2" stroke="#59FF00" stroke-width="1"/>
+      <rect x="21" y="4" width="2.5" height="6" rx="1" fill="#59FF00"/>
+      <rect id="battFill" x="2" y="2" width="0" height="9.5" rx="1" fill="#888"/>
+    </svg>
+    <span id="battText" style="font-size:11px; color:#888; font-weight:600;">--</span>
+  </div>
+
+  <!-- Top-right menu button — toggles advance panel -->
+  <div class="settings-btn" onclick="toggleAdvance()">
+    <svg viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+  </div>
+
+  <!-- Advance overlay panel -->
+  <div class="advance-overlay" id="advOverlay" onclick="toggleAdvance()"></div>
+  <div class="advance-panel" id="advPanel">
+    <div class="adv-panel-header">
+      <span class="adv-panel-title">Advance</span>
+      <span class="adv-panel-close" onclick="toggleAdvance()">&times;</span>
+    </div>
+    <div class="adv-panel-items">
+      <div class="adv-box" onclick="openSubPage('terminal')"><div><div class="adv-title">Terminal</div><div class="adv-desc">Send command directly to Rover</div></div><span class="adv-arrow">&rarr;</span></div>
+      <div class="adv-box" onclick="openSubPage('prompt')"><div><div class="adv-title">Prompt Settings</div><div class="adv-desc">Configure system prompt for AI</div></div><span class="adv-arrow">&rarr;</span></div>
+    </div>
+  </div>
+
+  <!-- Pages -->
+  <div class="content">
+
+    <!-- ========== CONTROLLER ========== -->
+    <div class="page active" id="p-controller">
+      <div class="page-title">Controller</div>
+      <div class="video-box" style="height:170px;">Camera Feed<div class="occ-mini" onclick="event.stopPropagation(); toggleOccPopup()" style="cursor:pointer;">Occ Map</div></div>
+      <div style="height:8px;"></div>
+      <div class="status-strip" style="flex-direction:column; gap:2px; padding:4px 10px;">
+        <!-- Row 1: Connection progress OR nav status -->
+        <div id="connRow" style="display:flex; align-items:center; width:100%; gap:4px;">
+          <div class="sdot" style="background:#FFEB3B;" id="connDot"></div>
+          <span class="lbl" id="connLbl" style="font-size:10px; color:#FFEB3B;">Connecting 0/9</span>
+          <span style="flex:1;"></span>
+          <span id="connDots" style="display:flex; gap:2px;"></span>
+        </div>
+        <div id="navRow" style="display:none; align-items:center; width:100%; gap:4px;">
+          <div class="sdot" style="background:#4CAF50;" id="navDot"></div>
+          <span class="lbl" id="navLbl" style="font-size:10px;">Idle</span>
+          <span style="width:10px;"></span>
+          <span class="lbl" style="font-size:10px; color:#64B5F6;">SLAM</span>
+          <span style="flex:1;"></span>
+          <span id="homeInd" style="font-size:9px; color:#888;">Home: --</span>
+          <span style="width:8px;"></span>
+          <span id="wpInd" style="font-size:9px; color:#888;">WP: 0</span>
+        </div>
+        <!-- Row 2: Pose data -->
+        <div style="display:flex; align-items:center; width:100%; gap:4px;">
+          <div class="sdot" style="width:6px; height:6px;" id="poseDot"></div>
+          <span class="lbl" id="poseLbl" style="font-size:9px; color:#FF8A80;">Pose: waiting for /pose...</span>
+        </div>
+      </div>
+      <div style="height:8px;"></div>
+      <div class="estop-btn" id="estopBtn" onclick="toggleEstop()">Activate E-STOP</div>
+      <div style="height:8px;"></div>
+      <div class="sec-label">Navigation</div>
+      <div style="height:4px;"></div>
+      <div class="act-row">
+        <div class="act-btn nav-btn" onclick="doSetHome(this)"><span class="ic">Pin</span><span class="lb">Set Home</span></div>
+        <div class="act-btn nav-btn" onclick="doGoHome(this)"><span class="ic">Home</span><span class="lb">Go Home</span></div>
+        <div class="act-btn nav-btn" onclick="doResetHome(this)"><span class="ic">Reset</span><span class="lb">Reset</span></div>
+        <div class="act-btn cancel-btn" onclick="doCancelAll(this)"><span class="ic">X</span><span class="lb">Cancel</span></div>
+      </div>
+      <div style="height:8px;"></div>
+      <div class="sec-label">Record & Autonomy</div>
+      <div style="height:4px;"></div>
+      <div class="act-row">
+        <div class="act-btn rec-btn" id="recBtn" onclick="toggleRec()"><span class="ic">Rec</span><span class="lb">Record</span></div>
+        <div class="act-btn auto-btn" id="repBtn" onclick="toggleRep()"><span class="ic">Play</span><span class="lb">Replay (0)</span></div>
+        <div class="act-btn auto-btn" id="lfBtn" onclick="toggleLF()"><span class="ic">LF</span><span class="lb">Line Follow</span></div>
+      </div>
+      <div style="height:10px;"></div>
+      <div class="joy-area">
+        <div class="joy-wrap">
+          <div class="joy"><span class="ar l">&#9664;</span><div class="thumb"></div><span class="ar r">&#9654;</span></div>
+          <div class="joy-lbl">Rotate</div>
+        </div>
+        <div class="joy-wrap">
+          <div class="joy"><span class="ar u">&#9650;</span><div class="thumb"></div><span class="ar d">&#9660;</span></div>
+          <div class="joy-lbl">Drive</div>
+        </div>
+      </div>
+      <div style="height:6px;"></div>
+      <div class="spd-row">
+        <span class="slbl">Lin</span>
+        <div class="spd-btn" onclick="adj('lin',-1)">-</div>
+        <span class="spd-val" id="linV">1.0</span>
+        <div class="spd-btn" onclick="adj('lin',1)">+</div>
+        <div class="spd-gap"></div>
+        <span class="slbl">Ang</span>
+        <div class="spd-btn" onclick="adj('ang',-1)">-</div>
+        <span class="spd-val" id="angV">1.5</span>
+        <div class="spd-btn" onclick="adj('ang',1)">+</div>
+      </div>
+    </div>
+
+    <!-- ========== STATUS ========== -->
+    <div class="page" id="p-status">
+      <div class="page-title">Status</div>
+      <div class="video-box" style="height:180px;">Camera Feed</div>
+      <div style="height:8px;"></div>
+      <div class="tele-grid">
+        <div class="tele-col">
+          <div class="gradient-block"><div class="block-title">State</div><div class="block-divider"></div><div class="block-value" id="stateVal" style="color:#fff;">Idle</div><div class="state-desc" id="stateDesc">Rover is ready</div></div>
+          <div class="gradient-block"><div class="block-title">Battery</div><div class="block-divider"></div><div class="block-value" id="battVal">--</div></div>
+          <div class="gradient-block"><div class="block-title">Linear Velocity (x)</div><div class="block-divider"></div><div class="block-value" id="linVelVal">0.00</div></div>
+          <div class="gradient-block"><div class="block-title">Angular Velocity (z)</div><div class="block-divider"></div><div class="block-value" id="angVelVal">0.00</div></div>
+        </div>
+        <div class="tele-col">
+          <div class="occ-box" style="width:100%; cursor:pointer;" onclick="toggleOccPopup()">Loading occupancy map...</div>
+          <div class="gradient-block"><div class="block-title">Coordinates (X, Y)</div><div class="block-divider"></div><div class="block-value" id="coordVal">0.00, 0.00</div></div>
+          <div class="gradient-block"><div class="block-title">Heading (W)</div><div class="block-divider"></div><div class="block-value" id="headVal">0.00</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== TERMINAL ========== -->
+    <div class="page" id="p-terminal">
+      <div class="sub-header"><span class="back-btn" onclick="goBack()">&larr;</span><span class="page-title" style="padding:0;">Terminal</span></div>
+      <div style="height:12px;"></div>
+      <div style="background:#000; border-radius:8px; padding:12px; font-family:monospace; font-size:12px; color:#59FF00; min-height:300px;">
+        <div style="color:#888;">$ ros2 topic list</div>
+        <div>/camera/image_raw</div>
+        <div>/cmd_vel</div>
+        <div>/e_stop</div>
+        <div>/goal_pose</div>
+        <div>/map</div>
+        <div>/nav_status</div>
+        <div>/scan</div>
+        <div>/tf</div>
+        <div style="color:#888; margin-top:8px;">$<span class="cursor-blink">_</span></div>
+      </div>
+      <div style="height:8px;"></div>
+      <div style="display:flex; gap:8px;">
+        <input type="text" placeholder="Enter command..." style="flex:1; background:#2A2E2E; border:1px solid #444; border-radius:8px; padding:10px 12px; color:#fff; font-size:13px; font-family:monospace; outline:none;">
+        <div style="background:#59FF00; color:#000; padding:10px 16px; border-radius:8px; font-weight:700; font-size:13px; cursor:pointer; display:flex; align-items:center;">Run</div>
+      </div>
+    </div>
+
+    <!-- ========== PROMPT SETTINGS ========== -->
+    <div class="page" id="p-prompt">
+      <div class="sub-header"><span class="back-btn" onclick="goBack()">&larr;</span><span class="page-title" style="padding:0;">Prompt Settings</span></div>
+      <div style="height:12px;"></div>
+      <div style="font-size:12px; color:#888; margin-bottom:8px;">System Prompt</div>
+      <textarea style="width:100%; min-height:200px; background:#2A2E2E; border:1px solid #444; border-radius:8px; padding:12px; color:#fff; font-size:13px; resize:vertical; outline:none; font-family:inherit;">You are a helpful rover assistant for the Leo Rover. You can navigate to locations, report sensor data, and control the rover's movement. Always confirm dangerous actions before executing.</textarea>
+      <div style="height:12px;"></div>
+      <div style="font-size:12px; color:#888; margin-bottom:8px;">Model</div>
+      <div class="gradient-block" style="padding:12px; text-align:left; color:#fff; font-size:13px;">GPT-4o (via Qualcomm QNN)</div>
+    </div>
+
+    <!-- ========== TELEMETRY ========== -->
+    <div class="page" id="p-telemetry">
+      <div class="sub-header"><span class="back-btn" onclick="goBack()">&larr;</span><span class="page-title" style="padding:0;">Telemetry</span></div>
+      <div style="height:12px;"></div>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <div class="gradient-block"><div class="block-title">CPU Temperature</div><div class="block-divider"></div><div class="block-value">42.3 C</div></div>
+        <div class="gradient-block"><div class="block-title">WiFi Signal (RSSI)</div><div class="block-divider"></div><div class="block-value">-52 dBm</div></div>
+        <div class="gradient-block"><div class="block-title">Motor Current (L)</div><div class="block-divider"></div><div class="block-value">0.34 A</div></div>
+        <div class="gradient-block"><div class="block-title">Motor Current (R)</div><div class="block-divider"></div><div class="block-value">0.31 A</div></div>
+        <div class="gradient-block"><div class="block-title">Uptime</div><div class="block-divider"></div><div class="block-value">2h 14m</div></div>
+        <div class="gradient-block"><div class="block-title">Odometry Distance</div><div class="block-divider"></div><div class="block-value">47.2 m</div></div>
+        <div class="gradient-block"><div class="block-title">LiDAR Points/sec</div><div class="block-divider"></div><div class="block-value">4,200</div></div>
+      </div>
+    </div>
+
+    <!-- ========== OCCUPANCY MAP ========== -->
+    <div class="page" id="p-occupancy">
+      <div class="sub-header"><span class="back-btn" onclick="goBack()">&larr;</span><span class="page-title" style="padding:0;">Occupancy Map</span></div>
+      <div style="height:12px;"></div>
+      <div class="occ-box" style="width:100%; height:480px; flex-direction:column; gap:8px; font-size:13px;">
+        <div style="font-size:40px;">&#128506;</div>
+        Loading occupancy map...
+      </div>
+    </div>
+
+    <!-- ========== NETWORK CONFIG ========== -->
+    <div class="page" id="p-network">
+      <div class="sub-header"><span class="back-btn" onclick="goBack()">&larr;</span><span class="page-title" style="padding:0;">Network Config</span></div>
+      <div style="height:12px;"></div>
+      <div style="display:flex; flex-direction:column; gap:12px;">
+        <div>
+          <div style="font-size:12px; color:#888; margin-bottom:4px;">Rover IP Address</div>
+          <input type="text" value="10.0.0.1" style="width:100%; background:#2A2E2E; border:1px solid #444; border-radius:8px; padding:10px 12px; color:#59FF00; font-size:14px; font-family:monospace; outline:none;">
+        </div>
+        <div>
+          <div style="font-size:12px; color:#888; margin-bottom:4px;">WebSocket Port</div>
+          <input type="text" value="9090" style="width:100%; background:#2A2E2E; border:1px solid #444; border-radius:8px; padding:10px 12px; color:#59FF00; font-size:14px; font-family:monospace; outline:none;">
+        </div>
+        <div>
+          <div style="font-size:12px; color:#888; margin-bottom:4px;">HTTP Port</div>
+          <input type="text" value="8080" style="width:100%; background:#2A2E2E; border:1px solid #444; border-radius:8px; padding:10px 12px; color:#59FF00; font-size:14px; font-family:monospace; outline:none;">
+        </div>
+        <div>
+          <div style="font-size:12px; color:#888; margin-bottom:4px;">Camera Route</div>
+          <input type="text" value="/stream?topic=/camera/image_raw&type=ros_compressed" style="width:100%; background:#2A2E2E; border:1px solid #444; border-radius:8px; padding:10px 12px; color:#59FF00; font-size:12px; font-family:monospace; outline:none;">
+        </div>
+        <div style="height:4px;"></div>
+        <div style="background:#59FF00; color:#000; padding:12px; border-radius:8px; font-weight:700; font-size:14px; text-align:center; cursor:pointer;">Save Config</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Nav: Controller | [mic] | Status -->
+  <div class="bottom-nav">
+    <div class="bnav-item active" id="bn-controller" onclick="navBottom('controller')">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M21.58 16.09l-1.09-7.66A3.996 3.996 0 0016.53 5H7.47a3.996 3.996 0 00-3.96 3.43L2.42 16.09a2 2 0 001.98 2.31h15.2a2 2 0 001.98-2.31zM10 14H8v2H6v-2H4v-2h2V10h2v2h2v2zm5.5 2c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm3-3c-.83 0-1.5-.67-1.5-1.5S17.67 10 18.5 10s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>
+      <span>Controller</span>
+    </div>
+    <div class="bnav-spacer"></div>
+    <div class="bnav-item" id="bn-status" onclick="navBottom('status')">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
+      <span>Status</span>
+    </div>
+    <div class="mic-fab" onclick="openMic()">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="#59FF00"><path d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/></svg>
+    </div>
+  </div>
+
+  <!-- Mic / Voice Popup with Chat History -->
+  <div class="mic-overlay" id="micOverlay">
+    <div class="mic-header">
+      <span class="mic-header-title">HitchPlay AI</span>
+      <span class="mic-close" onclick="closeMic()">&times;</span>
+    </div>
+
+    <div class="chat-history" id="chatHistory">
+      <div class="msg bot">Hello! I'm your Leo Rover assistant. Say a command or ask a question.</div>
+    </div>
+
+    <div class="mic-bottom">
+      <div class="mic-status" id="micStatus">Tap to speak</div>
+      <div class="mic-animation" id="micAnim" onclick="startListening()"></div>
+      <div class="mic-actions">
+        <div class="mic-action-btn mic-send-btn" id="micSendBtn" onclick="micSend()">Send</div>
+        <div class="mic-action-btn mic-cancel-btn" onclick="closeMic()">Close</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Occupancy Map Popup -->
+  <div class="occ-popup-overlay" id="occPopup" onclick="toggleOccPopup()">
+    <div class="occ-popup-content">
+      <div>&#128506;</div>
+      Occupancy Map
+    </div>
+    <span class="occ-popup-hint">Tap anywhere to close</span>
+  </div>
+
+  <!-- Toast / Snackbar -->
+  <div class="toast" id="toast"></div>
+
+  <div class="home-bar"><div></div></div>
+</div>
+
+<script>
+// ====================== State ======================
+let advOpen = false;
+let mainPage = 'controller';
+const mainPages = ['controller', 'status'];
+let estop=false, rec=false, rep=false, lf=false, lin=1.0, ang=1.5;
+let homeIsSet=false, homeX=0, homeY=0, wpCount=0, poseOk=false;
+let poseX=0, poseY=0;
+
+// Connection tracking (matches Android app's 9 topics in priority order)
+const topics = ['/cmd_vel','/e_stop','/pose','/nav_status','/goal_pose','/cancel_nav','/waypoint_replay','/line_follow_cmd','/map'];
+const connStatus = {};
+topics.forEach(t => connStatus[t] = false);
+let allReady = false;
+
+// ====================== Toast ======================
+let toastTimer = null;
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// ====================== Connection Simulation ======================
+function initConnDots() {
+  const container = document.getElementById('connDots');
+  container.innerHTML = '';
+  topics.forEach(() => {
+    const d = document.createElement('div');
+    d.style.cssText = 'width:6px;height:6px;border-radius:50%;background:#555;';
+    container.appendChild(d);
+  });
+}
+function simulateConnections() {
+  initConnDots();
+  const dots = document.getElementById('connDots').children;
+  let idx = 0;
+  const interval = setInterval(() => {
+    if (idx >= topics.length) { clearInterval(interval); return; }
+    connStatus[topics[idx]] = true;
+    dots[idx].style.background = '#4CAF50';
+    const count = Object.values(connStatus).filter(v=>v).length;
+    document.getElementById('connLbl').textContent = 'Connecting ' + count + '/' + topics.length;
+
+    // When pose connects, update pose indicator
+    if (topics[idx] === '/pose') {
+      setTimeout(() => {
+        poseOk = true;
+        poseX = 1.23; poseY = -0.45;
+        document.getElementById('poseDot').style.background = '#4CAF50';
+        document.getElementById('poseLbl').style.color = '#CCC';
+        document.getElementById('poseLbl').textContent = 'Pose: (' + poseX.toFixed(2) + ', ' + poseY.toFixed(2) + ')';
+        document.getElementById('coordVal').textContent = poseX.toFixed(2) + ', ' + poseY.toFixed(2);
+        document.getElementById('headVal').textContent = '0.92';
+      }, 800);
+    }
+
+    if (count === topics.length) {
+      allReady = true;
+      document.getElementById('connRow').style.display = 'none';
+      document.getElementById('navRow').style.display = 'flex';
+      showToast('All systems ready \u2014 ' + topics.length + '/' + topics.length + ' topics connected');
+      // Update battery
+      document.getElementById('battText').textContent = '75%';
+      document.getElementById('battText').style.color = '#59FF00';
+      document.getElementById('battFill').setAttribute('width', '10.5');
+      document.getElementById('battFill').setAttribute('fill', '#59FF00');
+      document.getElementById('battVal').textContent = '75%';
+    }
+    idx++;
+  }, 400);
+}
+
+// ====================== Navigation ======================
+function toggleAdvance() {
+  advOpen = !advOpen;
+  document.getElementById('advPanel').classList.toggle('open', advOpen);
+  document.getElementById('advOverlay').classList.toggle('open', advOpen);
+}
+function openSubPage(page) {
+  const cur = document.querySelector('.page.active');
+  if (cur) { const id = cur.id.replace('p-',''); if (mainPages.includes(id)) mainPage = id; }
+  advOpen = false;
+  document.getElementById('advPanel').classList.remove('open');
+  document.getElementById('advOverlay').classList.remove('open');
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('p-' + page).classList.add('active');
+  document.querySelectorAll('.bnav-item').forEach(b => b.classList.remove('active'));
+  updateBattery(page);
+}
+function goBack() {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('p-' + mainPage).classList.add('active');
+  document.querySelectorAll('.bnav-item').forEach(b => b.classList.remove('active'));
+  const el = document.getElementById('bn-' + mainPage);
+  if (el) el.classList.add('active');
+  updateBattery(mainPage);
+}
+function updateBattery(page) {
+  document.getElementById('batteryInd').style.display = mainPages.includes(page) ? 'flex' : 'none';
+}
+function navBottom(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('p-' + page).classList.add('active');
+  document.querySelectorAll('.bnav-item').forEach(b => b.classList.remove('active'));
+  const el = document.getElementById('bn-' + page);
+  if (el) el.classList.add('active');
+  updateBattery(page);
+}
+function flash(el) { el.style.opacity='0.5'; setTimeout(()=>el.style.opacity='1', 150); }
+
+// ====================== Controller Actions ======================
+function toggleEstop() {
+  estop=!estop;
+  const b=document.getElementById('estopBtn');
+  b.classList.toggle('on',estop);
+  b.textContent=estop?'Cancel E-STOP':'Activate E-STOP';
+  if (allReady) {
+    document.getElementById('navDot').style.background=estop?'#f44336':'#4CAF50';
+    document.getElementById('navLbl').textContent=estop?'E-Stop':'Idle';
+  }
+}
+
+// Navigation buttons with feedback
+function doSetHome(el) {
+  flash(el);
+  if (!poseOk) { showToast('No pose data yet \u2014 /pose topic not connected'); return; }
+  homeX = poseX; homeY = poseY; homeIsSet = true;
+  document.getElementById('homeInd').textContent = 'Home: SET';
+  document.getElementById('homeInd').style.color = '#4CAF50';
+  showToast('Home set: (' + homeX.toFixed(2) + ', ' + homeY.toFixed(2) + ')');
+}
+function doGoHome(el) {
+  flash(el);
+  if (!homeIsSet) { showToast('Navigating to origin (0, 0) \u2014 no custom home set'); }
+  else { showToast('Navigating home (' + homeX.toFixed(2) + ', ' + homeY.toFixed(2) + ')'); }
+}
+function doResetHome(el) {
+  flash(el);
+  homeX=0; homeY=0; homeIsSet=false;
+  document.getElementById('homeInd').textContent = 'Home: --';
+  document.getElementById('homeInd').style.color = '#888';
+  showToast('Home reset to origin (0, 0)');
+}
+function doCancelAll(el) {
+  flash(el);
+  if (rep) toggleRep();
+  if (lf) toggleLF();
+  showToast('All navigation cancelled');
+}
+
+// Record / Replay / Line Follow with feedback
+function toggleRec() {
+  if (!rec && !poseOk) { showToast('Cannot record \u2014 no pose data from /pose topic'); return; }
+  rec=!rec; const b=document.getElementById('recBtn'); b.classList.toggle('on',rec);
+  if (rec) {
+    wpCount = 0;
+    b.innerHTML='<span class="ic">||</span><span class="lb">Stop Rec</span>';
+    showToast('Recording started \u2014 drive the rover');
+    // Simulate waypoint accumulation
+    const wpInterval = setInterval(() => {
+      if (!rec) { clearInterval(wpInterval); return; }
+      wpCount++;
+      document.getElementById('wpInd').textContent = 'WP: ' + wpCount;
+      document.getElementById('wpInd').style.color = '#64B5F6';
+    }, 500);
+  } else {
+    b.innerHTML='<span class="ic">Rec</span><span class="lb">Record</span>';
+    showToast('Recording saved: ' + wpCount + ' waypoints');
+    document.getElementById('repBtn').querySelector('.lb').textContent = 'Replay (' + wpCount + ')';
+  }
+}
+function toggleRep() {
+  if (!rep && wpCount === 0) { showToast('No waypoints to replay \u2014 record a path first'); return; }
+  rep=!rep; const b=document.getElementById('repBtn'); b.classList.toggle('on',rep);
+  if (rep) {
+    b.innerHTML='<span class="ic">||</span><span class="lb">Stop</span>';
+    showToast('Replay started from WP 1/' + wpCount);
+  } else {
+    b.innerHTML='<span class="ic">Play</span><span class="lb">Replay (' + wpCount + ')</span>';
+  }
+}
+function toggleLF() {
+  lf=!lf; const b=document.getElementById('lfBtn'); b.classList.toggle('on',lf);
+  b.innerHTML=lf?'<span class="ic">||</span><span class="lb">Stop LF</span>':'<span class="ic">LF</span><span class="lb">Line Follow</span>';
+}
+function adj(t,d) {
+  if(t==='lin'){lin=Math.max(0.1,Math.min(2.0,+(lin+d*0.1).toFixed(1)));document.getElementById('linV').textContent=lin.toFixed(1);}
+  else{ang=Math.max(0.1,Math.min(3.0,+(ang+d*0.1).toFixed(1)));document.getElementById('angV').textContent=ang.toFixed(1);}
+}
+
+// ====================== Occupancy Popup ======================
+function toggleOccPopup() {
+  document.getElementById('occPopup').classList.toggle('open');
+}
+
+// ====================== Voice / Mic ======================
+const sampleConversations = [
+  { user: "What's the battery level?", bot: "The current battery level is 75%. The rover is in idle state and ready for commands." },
+  { user: "Navigate to the kitchen", bot: "Setting navigation goal to the kitchen waypoint. The rover is now navigating." },
+  { user: "Stop moving", bot: "Emergency stop activated. The rover has been halted. All navigation cancelled." },
+  { user: "Record a new path", bot: "Waypoint recording started. Drive the rover along the desired path, then say 'stop recording' when done." },
+];
+let convIndex = 0;
+function openMic() {
+  document.getElementById('micOverlay').classList.add('open');
+  document.getElementById('micStatus').textContent = 'Tap to speak';
+  document.getElementById('micAnim').classList.remove('listening');
+  document.getElementById('micSendBtn').style.display = 'none';
+}
+function closeMic() { document.getElementById('micOverlay').classList.remove('open'); }
+function startListening() {
+  const anim = document.getElementById('micAnim');
+  const status = document.getElementById('micStatus');
+  anim.classList.add('listening');
+  status.textContent = 'Listening...';
+  document.getElementById('micSendBtn').style.display = 'none';
+  const conv = sampleConversations[convIndex % sampleConversations.length];
+  setTimeout(() => {
+    anim.classList.remove('listening');
+    status.textContent = '"' + conv.user + '"';
+    document.getElementById('micSendBtn').style.display = 'block';
+  }, 2000);
+}
+function micSend() {
+  const conv = sampleConversations[convIndex % sampleConversations.length];
+  const history = document.getElementById('chatHistory');
+  const userMsg = document.createElement('div');
+  userMsg.className = 'msg user'; userMsg.textContent = conv.user;
+  history.appendChild(userMsg);
+  setTimeout(() => {
+    const botMsg = document.createElement('div');
+    botMsg.className = 'msg bot'; botMsg.textContent = conv.bot;
+    history.appendChild(botMsg);
+    history.scrollTop = history.scrollHeight;
+  }, 600);
+  document.getElementById('micStatus').textContent = 'Tap to speak again';
+  document.getElementById('micSendBtn').style.display = 'none';
+  document.getElementById('micAnim').classList.remove('listening');
+  history.scrollTop = history.scrollHeight;
+  convIndex++;
+}
+
+// ====================== Init ======================
+document.getElementById('poseDot').style.background = '#F44336';
+simulateConnections();
+</script>
+</body>
+</html>

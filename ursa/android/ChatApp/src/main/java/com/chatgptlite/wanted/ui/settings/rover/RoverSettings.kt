@@ -40,10 +40,7 @@ fun SettingsScreen(
     onBackPressed: () -> Unit,
     onOccMapClick: () -> Unit = {}
 ) {
-    // Initialize connections — each method is individually guarded against duplicates
-    LaunchedEffect(Unit) {
-        viewModel.initFeedsOnce(mainViewModel)
-    }
+    // Feeds are pre-connected in MainActivity — guards prevent duplicates if called again
 
     val roverState by viewModel.roverState.collectAsState()
 
@@ -126,7 +123,7 @@ fun SettingsScreen(
                 ) {
                     TelemetryBlock("State", roverState, isState = true) // Updated state
                     Spacer(modifier = Modifier.height(8.dp))
-                    TelemetryBlock("Battery", "$battery%")
+                    TelemetryBlock("Battery", if (battery != null) "$battery%" else "--")
                     Spacer(modifier = Modifier.height(8.dp))
                     TelemetryBlock("Linear Velocity (x)", "$linear_velocity")
                     Spacer(modifier = Modifier.height(8.dp))
@@ -189,9 +186,16 @@ fun TelemetryBlock(title: String, value: String? = null, isState: Boolean? = fal
         } else if (isState == true) {
             // Display state text with proper color
             val stateColor = when (value) {
-                "Executing" -> Color(0xFFFFD700) // Yellow
-                "Successful" -> Color(0xFF4CAF50) // Green
-                else -> Color.White // Default Green for Idle
+                "Disconnected" -> Color(0xFFF44336)  // Red
+                "Connecting" -> Color(0xFFFFEB3B)     // Yellow
+                "Idle" -> Color(0xFF4CAF50)           // Green
+                "Navigating" -> Color(0xFF64B5F6)     // Blue
+                "Replaying" -> Color(0xFF64B5F6)      // Blue
+                "Line Following" -> Color(0xFF64B5F6) // Blue
+                "Executing" -> Color(0xFFFFD700)      // Gold
+                "Error" -> Color(0xFFF44336)           // Red
+                "Successful" -> Color(0xFF4CAF50)     // Green
+                else -> Color.White
             }
 
             Text(
@@ -217,8 +221,14 @@ fun TelemetryBlock(title: String, value: String? = null, isState: Boolean? = fal
 
             Text(
                 text = when (value) {
+                    "Disconnected" -> "Rover not reachable"
+                    "Connecting" -> "Establishing connections..."
                     "Idle" -> "Rover is ready"
+                    "Navigating" -> "Driving to goal"
+                    "Replaying" -> "Replaying recorded path"
+                    "Line Following" -> "Following line"
                     "Executing" -> "Rover is processing"
+                    "Error" -> "Navigation failed"
                     "Successful" -> "Command completed"
                     else -> ""
                 },
