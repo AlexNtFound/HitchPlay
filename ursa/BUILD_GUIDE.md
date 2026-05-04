@@ -7,33 +7,11 @@ Workflow is terminal-first. You don't need Android Studio open at all to build a
 ## Prerequisites
 
 - **Android SDK + platform-tools** (for `adb`). Android Studio installs these; if you don't want the IDE, install them via [`commandlinetools`](https://developer.android.com/studio#command-tools).
-- **A JDK** — needed only to bootstrap the Gradle wrapper. Easiest source: Android Studio (it bundles a JBR). Otherwise install OpenJDK 17 from [adoptium.net](https://adoptium.net/temurin/releases/?version=17). See [Setting JAVA_HOME](#setting-java_home) below.
+- **A JDK** — needed only to bootstrap the Gradle wrapper. Easiest: install Android Studio (its bundled JBR is auto-detected by `build.cmd`). Otherwise install OpenJDK 17 from [adoptium.net](https://adoptium.net/temurin/releases/?version=17) — its installer sets `JAVA_HOME` automatically.
 - **QNN SDK (QAIRT) 2.42.0** — register at [qpm.qualcomm.com](https://qpm.qualcomm.com/#/main/tools/details/Qualcomm_AI_Runtime_SDK?version=2.42.0.251225), download and run.
 - A **Snapdragon 8 Gen 2 / Gen 3 / Elite** device with USB debugging on.
 
-You don't need to install Gradle separately — the wrapper handles that. Foojay also auto-provisions a separate JDK 17 for Kotlin compilation; the JDK above is just to start the wrapper itself.
-
-### Setting JAVA_HOME
-
-If you installed OpenJDK from Adoptium, the installer sets `JAVA_HOME` automatically — skip this section.
-
-Using Android Studio's bundled JBR on Windows (PowerShell):
-
-```powershell
-$jbr = "$env:ProgramFiles\Android\Android Studio\jbr"
-[Environment]::SetEnvironmentVariable("JAVA_HOME", $jbr, "User")
-# Apply to current session too:
-$env:JAVA_HOME = $jbr; $env:Path = "$jbr\bin;$env:Path"
-```
-
-The `User` scope persists across reboots and future shells. macOS/Linux equivalent goes in `~/.zshrc` or `~/.bashrc`:
-
-```bash
-export JAVA_HOME=$(/usr/libexec/java_home -v 17 2>/dev/null || echo /usr/lib/jvm/java-17-openjdk-amd64)
-export PATH="$JAVA_HOME/bin:$PATH"
-```
-
-Verify with `java -version` — any 17+ JDK works for the wrapper bootstrap (Foojay downgrades if needed for compilation).
+You don't need to install Gradle, set `JAVA_HOME` manually, or install a separate JDK 17 — the `build.cmd` / `build.sh` wrapper finds Android Studio's JBR automatically, and Foojay provisions JDK 17 for Kotlin compilation if needed.
 
 ---
 
@@ -68,12 +46,14 @@ Set-Alias adb "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe"
 From `android/`:
 
 ```powershell
-.\gradlew.bat assembleDebug
+.\build.cmd assembleDebug
 adb install -r ChatApp\build\outputs\apk\debug\ChatApp-debug.apk
 adb shell am start -n com.quicinc.chatapp/com.chatgptlite.wanted.MainActivity
 ```
 
-(macOS/Linux: `./gradlew assembleDebug`.)
+(macOS/Linux: `./build.sh assembleDebug`. First time on Unix: `chmod +x build.sh gradlew`.)
+
+`build.cmd` / `build.sh` is a thin wrapper around `gradlew` that auto-detects Java — checks `JAVA_HOME`, then Android Studio's bundled JBR, then common Adoptium / `java_home` paths. If you'd rather call Gradle directly (because you've set `JAVA_HOME` yourself), `.\gradlew.bat assembleDebug` still works.
 
 The first run does a few one-time things automatically: downloads Gradle 8.9, provisions JDK 17, configures CMake, copies QNN libs into the build. Expect the first build to take 5–10 minutes; subsequent builds are ~30 seconds.
 
@@ -105,7 +85,10 @@ If you'd rather not use the terminal: open the `android/` folder in Android Stud
 
 | Symptom | Fix |
 |---|---|
-| `Error: JAVA_HOME is not set and no 'java' command could be found in your PATH` | Set `JAVA_HOME` per [Setting JAVA_HOME](#setting-java_home) above |
+| `[Ursa] Could not find a JDK` (from `build.cmd`) | Install Android Studio (bundled JBR is auto-detected) or OpenJDK 17 from [adoptium.net](https://adoptium.net) |
+| `Error: JAVA_HOME is not set` (when calling `gradlew.bat` directly) | Use `.\build.cmd` instead — it auto-detects Java |
+| `IllegalAccessError: superclass access check failed: ... com.sun.tools.javac` | Make sure your `gradle.properties` has the `--add-exports` block (already committed). If you edited it, re-pull |
+| `Invalid Java installation found at ... .gradle\.tmp\jdks\...` | Foojay's JDK download corrupted. Run: `Remove-Item -Recurse -Force "$env:USERPROFILE\.gradle\.tmp\jdks", "$env:USERPROFILE\.gradle\jdks"` then rebuild |
 | `[Ursa] QNN SDK path is not configured` | Add `qnn.sdk.dir=...` to `android/local.properties` |
 | `[Ursa] Missing model assets for 'qwen2_5_7b_instruct'` | Place `tokenizer.json` and `genie-config.json` in `assets/models/qwen2_5_7b_instruct/` |
 | `[Ursa] Stray model .bin files found` | Delete the `.bin` files from `assets/models/...` — bins are downloaded at runtime, not bundled |
