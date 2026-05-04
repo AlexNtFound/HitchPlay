@@ -7,7 +7,7 @@ Workflow is terminal-first. You don't need Android Studio open at all to build a
 ## Prerequisites
 
 - **Android SDK + platform-tools** (for `adb`). Android Studio installs these; if you don't want the IDE, install them via [`commandlinetools`](https://developer.android.com/studio#command-tools).
-- **QNN SDK (QAIRT) 2.42.0** — register at [qpm.qualcomm.com](https://qpm.qualcomm.com/#/main/tools/details/qualcomm_ai_engine_direct), download, and extract somewhere (e.g. `C:\Qualcomm\AIStack\QAIRT\2.42.0.251225`).
+- **QNN SDK (QAIRT) 2.42.0** — register at [qpm.qualcomm.com](https://qpm.qualcomm.com/#/main/tools/details/Qualcomm_AI_Runtime_Community?version=2.42.0.251225), download, and extract somewhere (e.g. `C:\Qualcomm\AIStack\QAIRT\2.42.0.251225`).
 - A **Snapdragon 8 Gen 2 / Gen 3 / Elite** device with USB debugging on.
 
 You don't need to install Gradle or a JDK separately — both are auto-provisioned by the wrapper.
