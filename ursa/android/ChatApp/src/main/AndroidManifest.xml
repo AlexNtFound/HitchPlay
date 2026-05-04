@@ -5,6 +5,11 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Needed by ModelProvisioner to query Wi-Fi state for the model bin downloader. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- API 33+ requires runtime grant for download notifications. We don't currently
+         prompt at runtime; if a user denies it the download still works, just silently. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:name="com.chatgptlite.wanted.helpers.BaseApplication"
@@ -45,6 +50,14 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- First-launch model bin downloader. Started by MainActivity; not exported. -->
+        <activity
+            android:name="com.quicinc.chatapp.provisioning.ProvisioningActivity"
+            android:exported="false"
+            android:theme="@style/Theme.ChatApp"
+            android:screenOrientation="portrait"
+            tools:ignore="DiscouragedApi" />
 
 <!--                <activity-->
 <!--                    android:name="com.quicinc.chatapp.Conversation"-->

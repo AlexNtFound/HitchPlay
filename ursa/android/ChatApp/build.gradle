@@ -1,18 +1,20 @@
 plugins {
     id "com.android.application"
     id 'org.jetbrains.kotlin.android'
-//    id 'com.google.gms.google-services'
     id 'kotlin-kapt'
     id 'com.google.dagger.hilt.android'
     id 'kotlinx-serialization'
-//    id 'com.android.application' version '8.6.1' apply false
 }
 
 // Path to local QNN SDK.
+// Resolution order: local.properties (qnn.sdk.dir) -> env QNN_SDK_ROOT.
+// Configure ONCE per machine in android/local.properties:
+//     qnn.sdk.dir=C:/Qualcomm/AIStack/QAIRT/2.42.0.251225
 // Download QNN SDK from https://qpm.qualcomm.com/#/main/tools/details/qualcomm_ai_engine_direct
-// Lisa: /Users/qhou11/Desktop/Desktop_Pro/Berkeley/capstone/app_package/2.31.0.250130
-// Shujie: /Users/shujiedeng/Desktop/chat_app_model_qnn/2.31.0.250130
-def qnnSDKLocalPath="C:/Qualcomm/AIStack/QAIRT/2.42.0.251225"
+def _localProps = new Properties()
+def _lpFile = rootProject.file("local.properties")
+if (_lpFile.exists()) { _lpFile.withInputStream { _localProps.load(it) } }
+def qnnSDKLocalPath = _localProps.getProperty("qnn.sdk.dir") ?: System.getenv("QNN_SDK_ROOT") ?: ""
 // List of model assets
 def models = ["qwen2_5_7b_instruct"]
 // Relative asset path for model configuration and binaries
@@ -22,17 +24,11 @@ def libsDir = buildDir.dir("libs")
 
 android {
     compileSdk Integer.valueOf(androidCompileSDK)
-    compileSdk 34
 
     defaultConfig {
         applicationId "com.quicinc.chatapp"
-
-
-        // TODO: use androidMinSDK value from gradle.properties once it updates to 31
-        minSdk Integer.valueOf(31)
+        minSdk Integer.valueOf(androidMinSDK)
         targetSdk Integer.valueOf(androidTargetSDK)
-        minSdk 31
-        targetSdk 33
         versionCode 1
         versionName "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
@@ -97,33 +93,61 @@ android {
             version "3.22.1"
         }
     }
-    packagingOptions {
-        // Extract native libraries so they"re accessible via the file system directly.
-        jniLibs.useLegacyPackaging = true
-    }
     aaptOptions {
         noCompress "bin", "json"
     }
 
     preBuild.doFirst {
-        // Check if QNN SDK is set correctly
+        // ----- QNN SDK presence checks (actionable errors) -----
+        if (qnnSDKLocalPath == null || qnnSDKLocalPath.isEmpty()) {
+            throw new GradleException(
+                "\n[Ursa] QNN SDK path is not configured.\n" +
+                "Fix: add this line to android/local.properties:\n" +
+                "    qnn.sdk.dir=C:/Qualcomm/AIStack/QAIRT/2.42.0.251225\n" +
+                "(or set the QNN_SDK_ROOT environment variable)\n" +
+                "Download: https://qpm.qualcomm.com/#/main/tools/details/qualcomm_ai_engine_direct\n")
+        }
         if (!file(qnnSDKLocalPath).exists()) {
-            throw new RuntimeException("QNN SDK does not exist at " + qnnSDKLocalPath + ". Please set `qnnSDKLocalPath` in build.gradle.");
+            throw new GradleException(
+                "\n[Ursa] QNN SDK directory not found at:\n    " + qnnSDKLocalPath + "\n" +
+                "Fix: verify the `qnn.sdk.dir` value in android/local.properties points at an existing QAIRT install.\n")
         }
-
-        // Copy required QNN libs
         if (!file(qnnSDKLocalPath + "/lib/aarch64-android/libGenie.so").exists()) {
-            throw new RuntimeException("libGenie does not exist. Please set `qnnSDKLocalPath` in build.gradle.");
+            throw new GradleException(
+                "\n[Ursa] libGenie.so not found under:\n    " + qnnSDKLocalPath + "/lib/aarch64-android/\n" +
+                "The configured path is not a valid QAIRT SDK root, or is missing the aarch64-android libs.\n" +
+                "Required version for the bundled model bins: QAIRT 2.42.0.\n")
         }
 
-        // Ensure genie-config and tokenizer is present
+        // ----- Model asset checks -----
         models.each { model ->
-            if (!file(relAssetsPath + model + "/genie-config.json").exists()) {
-                throw new RuntimeException("Missing genie-config.json for " + model + ".")
+            def modelDir = relAssetsPath + model
+            def cfg = modelDir + "/genie-config.json"
+            def tok = modelDir + "/tokenizer.json"
+            if (!file(cfg).exists() || !file(tok).exists()) {
+                throw new GradleException(
+                    "\n[Ursa] Missing model assets for '" + model + "'.\n" +
+                    "Expected files (gitignored — must be placed manually):\n" +
+                    "    android/ChatApp/" + cfg + "\n" +
+                    "    android/ChatApp/" + tok + "\n" +
+                    "Download both from the shared model drive (see BUILD_GUIDE.md \"Quick Start\" step 2).\n")
             }
-            if (!file(relAssetsPath + model + "/tokenizer.json").exists()) {
-                throw new RuntimeException("Missing tokenizer.json for " + model + ".")
-            }
+        }
+
+        // ----- Guard against stray .bin files in assets -----
+        // The APK ZIP32 format caps total uncompressed size at 4 GB; a single .bin can
+        // get us close. Bins are downloaded at runtime now (see ModelProvisioner), so
+        // any .bin under assets/models/ is dead weight that breaks the build with an
+        // opaque "integer overflow" error at packageDebug. Catch it here with a clear msg.
+        def strayBins = fileTree(dir: relAssetsPath, include: "**/*.bin").files
+        if (!strayBins.isEmpty()) {
+            def list = strayBins.collect { "    " + it }.join("\n")
+            throw new GradleException(
+                "\n[Ursa] Stray model .bin files found under src/main/assets/models/:\n" +
+                list + "\n" +
+                "Bins are downloaded at runtime now — they MUST NOT be bundled in the APK.\n" +
+                "Delete them (they are gitignored, so safe to remove):\n" +
+                "    Remove-Item -Recurse -Force <path-to-bin>\n")
         }
 
         def libsABIDir = buildDir.dir("libs/arm64-v8a")
@@ -244,6 +268,13 @@ dependencies {
     implementation 'androidx.core:core-ktx:1.12.0'
 }
 
+// Pin Kotlin compilation to JDK 17 regardless of JAVA_HOME.
+// Android Studio Ladybug bundles JBR 21, which Kotlin 1.8.10's compiler can't target —
+// without this, kapt fails with "Unknown Kotlin JVM target: 21". Foojay (registered in
+// settings.gradle) auto-downloads a JDK 17 if the machine doesn't already have one.
+kotlin {
+    jvmToolchain(17)
+}
 
 if (System.getProperty("user.dir") != project.rootDir.path) {
     throw new RuntimeException("This project should be opened from the `android` directory (parent of ChatApp directory), NOT the ChatApp directory.")

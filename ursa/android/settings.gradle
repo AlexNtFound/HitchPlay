@@ -6,6 +6,13 @@ pluginManagement {
     }
 }
 
+// Lets Gradle auto-provision a JDK that matches `kotlin { jvmToolchain(...) }` even
+// when JAVA_HOME points at a different version (e.g. Android Studio Ladybug's JBR is
+// JDK 21, but Kotlin 1.8.10 needs JDK 17 for compilation).
+plugins {
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '0.8.0'
+}
+
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {

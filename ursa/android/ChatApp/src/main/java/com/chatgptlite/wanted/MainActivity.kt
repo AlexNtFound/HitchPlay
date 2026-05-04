@@ -80,6 +80,10 @@ import com.quicinc.chatapp.ChatMessage
 import com.quicinc.chatapp.GenieWrapper
 import com.quicinc.chatapp.R
 import com.quicinc.chatapp.StringCallback
+import com.quicinc.chatapp.provisioning.ModelManifest
+import com.quicinc.chatapp.provisioning.ProvisioningActivity
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.map
@@ -108,6 +112,21 @@ class MainActivity : ComponentActivity() {
     var genieResponse = mutableStateOf("")
     private val isForegroundRecording = mutableStateOf(false)
     lateinit var genieWrapper: GenieWrapper
+
+    /** Launches [ProvisioningActivity] and recreates this activity on success. */
+    private val provisioningLauncher: ActivityResultLauncher<Intent> =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode == RESULT_OK) {
+                recreate()
+            } else {
+                Toast.makeText(
+                    this,
+                    "Model setup was cancelled. Cannot start chat.",
+                    Toast.LENGTH_LONG
+                ).show()
+                finish()
+            }
+        }
 
 
     private fun startRecorder() {
@@ -253,6 +272,25 @@ class MainActivity : ComponentActivity() {
         Log.i("chatbackend", "copied from" + inputFilePath)
     }
 
+    /**
+     * Cheap launch-time check: every bin listed in the model manifest exists
+     * and has the expected size. Hash verification is intentionally skipped here —
+     * verifying ~5 GB on every cold start would block the UI thread for seconds.
+     * The provisioning flow does a full SHA-256 verify after download.
+     */
+    private fun areAllBinsValid(modelDir: File, modelName: String): Boolean {
+        return try {
+            val manifest = ModelManifest.load(this, modelName)
+            manifest.files.all { f ->
+                val file = File(modelDir, f.name)
+                file.exists() && file.length() == f.sizeBytes
+            }
+        } catch (t: Throwable) {
+            Log.w(TAG, "Failed to load manifest for '$modelName'; will re-provision", t)
+            false
+        }
+    }
+
     fun getGenieResponse(prompt: String, onResponse: (String) -> Unit) {
         genieWrapper.getResponseForPrompt(prompt, object : StringCallback {
             override fun onNewString(str: String?) {
@@ -289,7 +327,10 @@ class MainActivity : ComponentActivity() {
                 finish()
             }
 
-            val externalDir = externalCacheDir!!.absolutePath
+            // Use externalFilesDir (NOT externalCacheDir): DownloadManager on Android 11+
+            // can only write into externalFilesDir or public dirs. Keeping all model
+            // artifacts (bins + tokenizer + genie-config + htp_config) under one root.
+            val externalDir = getExternalFilesDir(null)!!.absolutePath
             try {
                 copyAssetsDir("models", externalDir.toString())
                 copyAssetsDir("htp_config", externalDir.toString())
@@ -317,6 +358,20 @@ class MainActivity : ComponentActivity() {
         val cConversationActivityKeyHtpConfig = htpExtConfigPath.toString()
         val cConversationActivityKeyModelName = "qwen2_5_7b_instruct"
 
+        // ----- Model bin presence gate -----
+        // If any required .bin is missing or corrupt, hand off to ProvisioningActivity.
+        // It downloads from GitHub Releases over Wi-Fi, verifies SHA-256, then finishes;
+        // we recreate() on success and re-enter this block with all bins valid.
+        val externalFilesBase = getExternalFilesDir(null)!!.absolutePath
+        val modelDirFile = File(Paths.get(externalFilesBase, "models", cConversationActivityKeyModelName).toString())
+        if (!areAllBinsValid(modelDirFile, cConversationActivityKeyModelName)) {
+            val intent = Intent(this, ProvisioningActivity::class.java).apply {
+                putExtra(ProvisioningActivity.EXTRA_MODEL_NAME, cConversationActivityKeyModelName)
+            }
+            provisioningLauncher.launch(intent)
+            return // Stop onCreate; we'll recreate() once provisioning returns OK.
+        }
+
         try {
             val nativeLibPath = applicationContext.applicationInfo.nativeLibraryDir
             Os.setenv("ADSP_LIBRARY_PATH", nativeLibPath, true)
@@ -324,8 +379,7 @@ class MainActivity : ComponentActivity() {
 
             val htpExtensionsDir = cConversationActivityKeyHtpConfig
             val modelName = cConversationActivityKeyModelName
-            val externalCacheDir = this.externalCacheDir!!.absolutePath.toString()
-            val modelDir = Paths.get(externalCacheDir, "models", modelName).toString()
+            val modelDir = modelDirFile.absolutePath
 
             genieWrapper = GenieWrapper(modelDir, htpExtensionsDir)
             Log.i("Chatbackend", "$modelName Loaded.")
@@ -634,7 +688,11 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        voiceWakeupManager.stop()
+        // Guard: if onCreate early-returned (e.g. waiting for ProvisioningActivity),
+        // voiceWakeupManager was never assigned and accessing it would throw.
+        if (::voiceWakeupManager.isInitialized) {
+            voiceWakeupManager.stop()
+        }
     }
 }
 

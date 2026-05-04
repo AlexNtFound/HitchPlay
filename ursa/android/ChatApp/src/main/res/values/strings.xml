@@ -3,4 +3,15 @@
     <string name="chat_with_llama_3_2_3b">Chat with Qwen 2.5 7B</string>
     <string name="user_hint_msg">What\'s on your mind?</string>
     <string name="sends_user_message">Sends user message</string>
+
+    <!-- Model provisioning UI -->
+    <string name="provisioning_title">Setting up the on-device model</string>
+    <string name="provisioning_starting">Preparing…</string>
+    <string name="provisioning_verifying">Verifying file %1$d of %2$d…</string>
+    <string name="provisioning_downloading_file">Downloading file %1$d of %2$d: %3$s</string>
+    <string name="provisioning_waiting_wifi">Waiting for Wi-Fi to resume…</string>
+    <string name="provisioning_done">Ready.</string>
+    <string name="provisioning_failed">Setup failed: %1$s</string>
+    <string name="provisioning_retry">Retry</string>
+    <string name="provisioning_cancel">Cancel</string>
 </resources>
