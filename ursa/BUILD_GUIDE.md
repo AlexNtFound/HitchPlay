@@ -7,10 +7,33 @@ Workflow is terminal-first. You don't need Android Studio open at all to build a
 ## Prerequisites
 
 - **Android SDK + platform-tools** (for `adb`). Android Studio installs these; if you don't want the IDE, install them via [`commandlinetools`](https://developer.android.com/studio#command-tools).
+- **A JDK** — needed only to bootstrap the Gradle wrapper. Easiest source: Android Studio (it bundles a JBR). Otherwise install OpenJDK 17 from [adoptium.net](https://adoptium.net/temurin/releases/?version=17). See [Setting JAVA_HOME](#setting-java_home) below.
 - **QNN SDK (QAIRT) 2.42.0** — register at [qpm.qualcomm.com](https://qpm.qualcomm.com/#/main/tools/details/Qualcomm_AI_Runtime_SDK?version=2.42.0.251225), download and run.
 - A **Snapdragon 8 Gen 2 / Gen 3 / Elite** device with USB debugging on.
 
-You don't need to install Gradle or a JDK separately — both are auto-provisioned by the wrapper.
+You don't need to install Gradle separately — the wrapper handles that. Foojay also auto-provisions a separate JDK 17 for Kotlin compilation; the JDK above is just to start the wrapper itself.
+
+### Setting JAVA_HOME
+
+If you installed OpenJDK from Adoptium, the installer sets `JAVA_HOME` automatically — skip this section.
+
+Using Android Studio's bundled JBR on Windows (PowerShell):
+
+```powershell
+$jbr = "$env:ProgramFiles\Android\Android Studio\jbr"
+[Environment]::SetEnvironmentVariable("JAVA_HOME", $jbr, "User")
+# Apply to current session too:
+$env:JAVA_HOME = $jbr; $env:Path = "$jbr\bin;$env:Path"
+```
+
+The `User` scope persists across reboots and future shells. macOS/Linux equivalent goes in `~/.zshrc` or `~/.bashrc`:
+
+```bash
+export JAVA_HOME=$(/usr/libexec/java_home -v 17 2>/dev/null || echo /usr/lib/jvm/java-17-openjdk-amd64)
+export PATH="$JAVA_HOME/bin:$PATH"
+```
+
+Verify with `java -version` — any 17+ JDK works for the wrapper bootstrap (Foojay downgrades if needed for compilation).
 
 ---
 
@@ -82,6 +105,7 @@ If you'd rather not use the terminal: open the `android/` folder in Android Stud
 
 | Symptom | Fix |
 |---|---|
+| `Error: JAVA_HOME is not set and no 'java' command could be found in your PATH` | Set `JAVA_HOME` per [Setting JAVA_HOME](#setting-java_home) above |
 | `[Ursa] QNN SDK path is not configured` | Add `qnn.sdk.dir=...` to `android/local.properties` |
 | `[Ursa] Missing model assets for 'qwen2_5_7b_instruct'` | Place `tokenizer.json` and `genie-config.json` in `assets/models/qwen2_5_7b_instruct/` |
 | `[Ursa] Stray model .bin files found` | Delete the `.bin` files from `assets/models/...` — bins are downloaded at runtime, not bundled |
