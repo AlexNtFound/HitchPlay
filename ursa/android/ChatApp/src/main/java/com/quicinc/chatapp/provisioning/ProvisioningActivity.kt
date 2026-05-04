@@ -16,10 +16,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -143,11 +146,32 @@ private fun ProvisionScreen(
                         text = stringResource(R.string.provisioning_failed, state.message),
                         color = MaterialTheme.colorScheme.error
                     )
-                    Button(onClick = onRetry) {
-                        Text(stringResource(R.string.provisioning_retry))
+                    // Filled primary button — explicit colors so the project's theme
+                    // can't accidentally make the label invisible.
+                    Button(
+                        onClick = onRetry,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF1976D2), // Material blue 700
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Text(
+                            text = stringResource(R.string.provisioning_retry),
+                            color = Color.White
+                        )
                     }
-                    Button(onClick = onCancel) {
-                        Text(stringResource(R.string.provisioning_cancel))
+                    OutlinedButton(
+                        onClick = onCancel,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = Color(0xFFB00020) // Material red
+                        )
+                    ) {
+                        Text(
+                            text = stringResource(R.string.provisioning_cancel),
+                            color = Color(0xFFB00020)
+                        )
                     }
                 }
             }
