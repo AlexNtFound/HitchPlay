@@ -16,14 +16,18 @@ if defined JAVA_HOME (
     if exist "%JAVA_HOME%\bin\java.exe" set "VALID=1"
 )
 
+REM JDK 17 is preferred — Kotlin 1.8.10's kapt has a NoSuchMethodError on JDK 21.
+REM Check explicit JDK 17 installs first, then JBR (often 21 on Ladybug+) only as fallback.
 if not defined VALID (
     for %%P in (
+        "%ProgramFiles%\Eclipse Adoptium\jdk-17"
+        "%ProgramFiles%\Java\jdk-17"
+        "%ProgramFiles%\Eclipse Foundation\jdk-17"
+        "%ProgramFiles%\Microsoft\jdk-17"
         "%ProgramFiles%\Android\Android Studio\jbr"
         "%LOCALAPPDATA%\Programs\Android Studio\jbr"
         "%ProgramFiles(x86)%\Android\Android Studio\jbr"
-        "%ProgramFiles%\Eclipse Adoptium\jdk-17"
         "%ProgramFiles%\Eclipse Adoptium\jdk-21"
-        "%ProgramFiles%\Java\jdk-17"
         "%ProgramFiles%\Java\jdk-21"
     ) do (
         if not defined VALID if exist "%%~P\bin\java.exe" (

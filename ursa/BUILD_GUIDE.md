@@ -7,7 +7,7 @@ Workflow is terminal-first. You don't need Android Studio open at all to build a
 ## Prerequisites
 
 - **Android SDK + platform-tools** (for `adb`). Android Studio installs these; if you don't want the IDE, install them via [`commandlinetools`](https://developer.android.com/studio#command-tools).
-- **A JDK** — needed only to bootstrap the Gradle wrapper. Easiest: install Android Studio (its bundled JBR is auto-detected by `build.cmd`). Otherwise install OpenJDK 17 from [adoptium.net](https://adoptium.net/temurin/releases/?version=17) — its installer sets `JAVA_HOME` automatically.
+- **JDK 17** — install from [adoptium.net](https://adoptium.net/temurin/releases/?version=17) (Windows MSI; tick "Set JAVA_HOME" and "Add to PATH" during install). Kotlin 1.8.10's kapt is incompatible with JDK 21+, so a JDK 17 install is required even if you already have Android Studio's JBR (which is JDK 21 on Ladybug+). `build.cmd` finds Adoptium's JDK 17 automatically.
 - **QNN SDK (QAIRT) 2.42.0** — register at [qpm.qualcomm.com](https://qpm.qualcomm.com/#/main/tools/details/Qualcomm_AI_Runtime_SDK?version=2.42.0.251225), download and run.
 - A **Snapdragon 8 Gen 2 / Gen 3 / Elite** device with USB debugging on.
 
