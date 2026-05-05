@@ -93,6 +93,26 @@ class RoverSettingsViewModel(application: Application) : AndroidViewModel(applic
         heading.value = String.format("%.2f", orientationZ)
     }
 
+    // ---- Per-connection guards (prevent duplicates while allowing retry) ----
+    private var _coordsStarted = false
+    private var _velocityStarted = false
+    private var _batteryStarted = false
+    private var _occupancyStarted = false
+    private var _feedStarted = false
+    private var _syncStarted = false
+
+    fun initFeedsOnce(mainViewModel: MainViewModel) {
+        syncWithMainViewModel(mainViewModel)
+        startCoordinatesWebSocket()
+        startVelocityWebSocket()
+        startBatteryWebSocket()
+        startOccupancyWebSocket()
+        if (!_feedStarted) {
+            _feedStarted = true
+            receiveFeed("10.0.0.1", "8080", "/stream?topic=/camera/image_raw&type=ros_compressed")
+        }
+    }
+
     // Function to sync with MainViewModel
     fun syncWithMainViewModel(mainViewModel: MainViewModel) {
         if (_syncStarted) return

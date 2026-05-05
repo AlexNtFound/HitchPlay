@@ -347,8 +347,133 @@ class VideoCamSettingsViewModel(application: Application) : AndroidViewModel(app
             Log.e("RoverControl", "WebSocket not initialized. Call createWebSocket first.")
             return
         }
+        waypoints.clear()
+        waypointCount.value = 0
+        isRecording.value = true
+        recordLastTime = System.currentTimeMillis()
+        toastMessage.value = "Recording started — drive the rover"
+        Log.i("Waypoint", "Recording started")
+    }
 
-        val controlMessage = """
+    fun stopRecording() {
+        isRecording.value = false
+        waypointCount.value = waypoints.size
+        Log.i("Waypoint", "Recording stopped, ${waypoints.size} waypoints saved")
+        saveWaypoints()
+        toastMessage.value = "Recording saved: ${waypoints.size} waypoints"
+    }
+
+    fun toggleRecording() {
+        if (isRecording.value) stopRecording() else startRecording()
+    }
+
+    /** Call from joystick listener at ~10Hz to record current position */
+    fun recordWaypointTick(x: Double, y: Double, yaw: Double) {
+        if (!isRecording.value) return
+        val now = System.currentTimeMillis()
+        if (now - recordLastTime < 100) return // 10Hz throttle
+        recordLastTime = now
+        waypoints.add(WaypointEntry("nav", x, y, yaw))
+        waypointCount.value = waypoints.size
+    }
+
+    private fun saveWaypoints() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val prefs = getApplication<Application>()
+                    .getSharedPreferences("WaypointData", Context.MODE_PRIVATE)
+                // Save as list-of-lists: [["nav", x, y, yaw], ...] — matches Python format
+                val jsonArray = JSONArray()
+                for (wp in waypoints) {
+                    val item = JSONArray()
+                    item.put(wp.type)
+                    item.put(wp.x)
+                    item.put(wp.y)
+                    item.put(wp.yaw)
+                    jsonArray.put(item)
+                }
+                prefs.edit().putString("waypoints", jsonArray.toString()).apply()
+                Log.i("Waypoint", "Saved ${waypoints.size} waypoints to prefs")
+            } catch (e: Exception) {
+                Log.e("Waypoint", "Save failed: ${e.message}")
+            }
+        }
+    }
+
+    private fun loadWaypoints() {
+        try {
+            val prefs = getApplication<Application>()
+                .getSharedPreferences("WaypointData", Context.MODE_PRIVATE)
+            val json = prefs.getString("waypoints", null) ?: return
+            val array = JSONArray(json)
+            waypoints.clear()
+            for (i in 0 until array.length()) {
+                val item = array.get(i)
+                if (item is JSONArray) {
+                    // New format: ["nav", x, y, yaw]
+                    waypoints.add(
+                        WaypointEntry(
+                            item.getString(0),
+                            item.getDouble(1),
+                            item.getDouble(2),
+                            item.getDouble(3)
+                        )
+                    )
+                } else if (item is JSONObject) {
+                    // Legacy format: {"type":"nav","x":...,"y":...,"yaw":...}
+                    waypoints.add(
+                        WaypointEntry(
+                            item.getString("type"),
+                            item.getDouble("x"),
+                            item.getDouble("y"),
+                            item.getDouble("yaw")
+                        )
+                    )
+                }
+            }
+            waypointCount.value = waypoints.size
+            Log.i("Waypoint", "Loaded ${waypoints.size} waypoints from prefs")
+        } catch (e: Exception) {
+            Log.e("Waypoint", "Load failed: ${e.message}")
+        }
+    }
+
+    // ---- Waypoint Replay ----
+
+    fun toggleReplay() {
+        if (isReplaying.value) stopReplay() else startReplay()
+    }
+
+    private fun startReplay() {
+        if (waypoints.isEmpty()) {
+            loadWaypoints()
+        }
+        if (waypoints.isEmpty()) {
+            toastMessage.value = "No waypoints to replay — record a path first"
+            Log.w("Replay", "No waypoints to replay")
+            return
+        }
+
+        // Find nearest nav waypoint to current position (matches Python script)
+        val startIdx = findNearestNavIndex()
+
+        // Build waypoints as list-of-lists: [["nav", x, y, yaw], ...]
+        // This matches the Python script format that Pi5 expects
+        val wpArray = JSONArray()
+        for (wp in waypoints) {
+            val item = JSONArray()
+            item.put(wp.type)
+            item.put(wp.x)
+            item.put(wp.y)
+            item.put(wp.yaw)
+            wpArray.put(item)
+        }
+        val payload = JSONObject()
+        payload.put("cmd", "start")           // Pi5 expects "cmd", NOT "action"
+        payload.put("waypoints", wpArray)
+        payload.put("start_index", startIdx)
+
+        val msg = """
         {
             "op": "publish",
             "topic": "/cmd_vel",
@@ -365,6 +490,11 @@ class VideoCamSettingsViewModel(application: Application) : AndroidViewModel(app
         } else {
             Log.e("RoverControl", "Failed to send command.")
         }
+        """.trimIndent()
+
+        linefollow_webSocket?.send(msg)
+        isLineFollowing.value = true
+        Log.i("LineFollow", "Started line following")
     }
 
     // ---- Navigation: Home ----
