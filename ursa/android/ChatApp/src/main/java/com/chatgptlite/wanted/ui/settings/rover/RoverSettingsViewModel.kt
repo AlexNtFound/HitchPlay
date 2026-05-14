@@ -40,7 +40,7 @@ class RoverSettingsViewModel(application: Application) : AndroidViewModel(applic
     var linear_velocity = MutableStateFlow<String?>("0")
     var angular_velocity = MutableStateFlow<String?>("0")
     var heading = MutableStateFlow<String?>("0")
-    var battery = MutableStateFlow<Int>(0)
+    var battery = MutableStateFlow<Int?>(null)  // null = no data yet
     private val DEFAULT_IPADDRESS = "10.0.0.1"
     private val DEFAULT_PORT = "8000"
     private val CONCAT = "ros2 topic echo "
@@ -62,8 +62,36 @@ class RoverSettingsViewModel(application: Application) : AndroidViewModel(applic
     private val _messageResult = MutableStateFlow<String?>(null)
     val messageResult: StateFlow<String?> = _messageResult.asStateFlow()
 
-    private val _roverState = MutableStateFlow("Idle")
+    private val _roverState = MutableStateFlow("Disconnected")
     val roverState: StateFlow<String> = _roverState
+    private var _connectionReady = false
+
+    // ---- Per-connection guards (prevent duplicates while allowing retry) ----
+    private var _coordsStarted = false
+    private var _velocityStarted = false
+    private var _batteryStarted = false
+    private var _occupancyStarted = false
+    private var _feedStarted = false
+    private var _syncStarted = false
+
+    fun initFeedsOnce(mainViewModel: MainViewModel) {
+        syncWithMainViewModel(mainViewModel)
+        // Pose data is now piped from ControllerViewModel — no duplicate /pose WebSocket
+        startVelocityWebSocket()
+        startBatteryWebSocket()
+        startOccupancyWebSocket()
+        if (!_feedStarted) {
+            _feedStarted = true
+            receiveFeed("10.0.0.1", "8080", "/stream?topic=/camera/image_raw&type=ros_compressed")
+        }
+    }
+
+    /** Called by ControllerViewModel when it receives /pose data — avoids duplicate WebSocket */
+    fun updatePoseFromController(x: Double, y: Double, orientationZ: Double) {
+        xCoordinate.value = String.format("%.2f", x)
+        yCoordinate.value = String.format("%.2f", y)
+        heading.value = String.format("%.2f", orientationZ)
+    }
 
     // ---- Per-connection guards (prevent duplicates while allowing retry) ----
     private var _coordsStarted = false
@@ -91,8 +119,35 @@ class RoverSettingsViewModel(application: Application) : AndroidViewModel(applic
         _syncStarted = true
         viewModelScope.launch {
             mainViewModel.roverStateFlow.collectLatest { newState ->
-                _roverState.value = newState // Update when MainViewModel emits new state
+                // Operational states from LLM/commands override connection state
+                _roverState.value = newState
             }
+        }
+    }
+
+    /** Called by ControllerViewModel when all WebSocket topics connect */
+    fun updateConnectionState(allConnected: Boolean) {
+        _connectionReady = allConnected
+        // Only update state if no operational state is active
+        val current = _roverState.value
+        if (allConnected && (current == "Disconnected" || current == "Connecting")) {
+            _roverState.value = "Idle"
+        } else if (!allConnected && current == "Idle") {
+            _roverState.value = "Connecting"
+        }
+    }
+
+    /** Called by ControllerViewModel when /nav_status updates — reflects real rover activity */
+    fun updateNavState(status: String) {
+        if (!_connectionReady) return  // Don't override connection states
+        _roverState.value = when (status) {
+            "navigating" -> "Navigating"
+            "replaying" -> "Replaying"
+            "line_following" -> "Line Following"
+            "arrived", "idle" -> "Idle"
+            "cancelled", "replay_stopped", "line_follow_stopped" -> "Idle"
+            "failed", "timeout", "blocked" -> "Error"
+            else -> status.replaceFirstChar { it.uppercase() }  // Fallback: capitalize raw status
         }
     }
 
@@ -148,9 +203,7 @@ class RoverSettingsViewModel(application: Application) : AndroidViewModel(applic
             }
         }
 
-        val client = OkHttpClient()
         client.newWebSocket(request, listener)
-        client.dispatcher.executorService.shutdown()
 
     }
 
@@ -210,16 +263,12 @@ class RoverSettingsViewModel(application: Application) : AndroidViewModel(applic
             .url("ws://$WEBSOCKET_IPADDRESS:$WEBSOCKET_PORT")
             .build()
 
-        val client = OkHttpClient()
-        var tempLinearVel = com.google.common.util.concurrent.AtomicDouble(0.0)
-        var tempAngularVel = com.google.common.util.concurrent.AtomicDouble(0.0)
-
         val listener1 = RoverWebSocketListener(topic1) { message ->
-            processVelocityMessage(message, tempLinearVel, tempAngularVel)
+            processVelocityMessage(message)
         }
 
         val listener2 = RoverWebSocketListener(topic2) { message ->
-            processVelocityMessage(message, tempLinearVel, tempAngularVel)
+            processVelocityMessage(message)
         }
 
         val webSocket_1 = client.newWebSocket(request, listener1)
@@ -229,129 +278,20 @@ class RoverSettingsViewModel(application: Application) : AndroidViewModel(applic
 //        client.dispatcher.executorService.shutdown()
     }
 
-    private fun processVelocityMessage(
-        message: String,
-        tempLinearVel: com.google.common.util.concurrent.AtomicDouble,
-        tempAngularVel: com.google.common.util.concurrent.AtomicDouble
-    ) {
+    private fun processVelocityMessage(message: String) {
         try {
             val jsonObject = JSONObject(message)
             val msgObject = jsonObject.getJSONObject("msg")
             val linearX = msgObject.getJSONObject("linear").getDouble("x")
             val angularZ = msgObject.getJSONObject("angular").getDouble("z")
 
-            synchronized(tempLinearVel) {
-                tempLinearVel.set(
-                    if (linearX != 0.0) linearX else tempLinearVel.get()
-                )
-            }
-            synchronized(tempAngularVel) {
-                tempAngularVel.set(
-                    if (angularZ != 0.0) angularZ else tempAngularVel.get()
-                )
-            }
-
-            // Update UI or pass data to other components
-            linear_velocity.value = String.format("%.5f", tempLinearVel.get())
-            angular_velocity.value = String.format("%.5f", tempAngularVel.get())
+            // Always pass through the actual value — including 0.0 when stopped
+            linear_velocity.value = String.format("%.5f", linearX)
+            angular_velocity.value = String.format("%.5f", angularZ)
 
         } catch (e: JSONException) {
             Log.e("WebSocket", "JSON parsing error: ${e.message}")
         }
-    }
-
-    fun startVelocityWebSocket_() {
-        val topic_1 = "/cmd_vel"
-        val topic_2 = "/cmd_vel_nav"
-
-        val request = Request.Builder()
-            .url("ws://$WEBSOCKET_IPADDRESS:$WEBSOCKET_PORT")
-            .build()
-
-        var temp_linear_vel = 0.0
-        var temp_angular_vel = 0.0
-
-        var listener_1 = RoverWebSocketListener(topic_1) { message ->
-            // This lambda will be called with each message received from /cmd_vel
-            Log.d("VelocityData", "Received velocity data: $message")
-            try {
-                val jsonObject = JSONObject(message)
-                val msgObject = jsonObject.getJSONObject("msg")
-                val linearX = msgObject.getJSONObject("linear").getDouble("x")
-                val angularZ = msgObject.getJSONObject("angular").getDouble("z")
-
-                Log.d("VelocityData", "Linear x: $linearX, Angular z: $angularZ")
-                temp_linear_vel = if (linearX != null) {
-                    linearX
-                } else {
-                    -2000.0
-                }
-                temp_angular_vel = if (angularZ != null) {
-                    angularZ
-                } else {
-                    -2000.0
-                }
-
-
-                // You can then pass these values to your callback, update UI, or handle as needed
-
-            } catch (e: JSONException) {
-                Log.e("WebSocket", "JSON parsing error: ${e.message}")
-            }
-        }
-
-
-        val listener_2 = RoverWebSocketListener(topic_2) { message ->
-                // This lambda will be called with each message received from /cmd_vel
-                Log.d("VelocityData", "Received velocity data: $message")
-                try {
-                    val jsonObject = JSONObject(message)
-                    val msgObject = jsonObject.getJSONObject("msg")
-                    val linearX = msgObject.getJSONObject("linear").getDouble("x")
-                    val angularZ = msgObject.getJSONObject("angular").getDouble("z")
-
-                    Log.d("VelocityData", "Linear x: $linearX, Angular z: $angularZ")
-
-                    temp_linear_vel = when {
-                        linearX != 0.0 -> linearX
-                        temp_linear_vel != 0.0 -> temp_linear_vel
-                        else -> 0.0
-                    }
-
-                    temp_angular_vel = when {
-                        angularZ != 0.0 -> angularZ
-                        temp_angular_vel != 0.0 -> temp_angular_vel
-                        else -> 0.0
-                    }
-
-                    // You can then pass these values to your callback, update UI, or handle as needed
-
-                } catch (e: JSONException) {
-                    Log.e("WebSocket", "JSON parsing error: ${e.message}")
-                }
-        }
-
-        linear_velocity.value = if (temp_linear_vel != null ) {
-                    String.format("%.5f", temp_linear_vel)
-        } else {
-            "Error parsing velocity data"
-        }
-
-        angular_velocity.value = if (temp_angular_vel != null ) {
-            String.format("%.5f", temp_angular_vel)
-        } else {
-            "Error parsing velocity data"
-        }
-
-        val client = OkHttpClient()
-        val webSocket = client.newWebSocket(request, listener_1)
-        webSockets.add(webSocket) // Add to list
-        client.dispatcher.executorService.shutdown()
-
-        val client_2 = OkHttpClient()
-        val webSocket_2 = client_2.newWebSocket(request, listener_2)
-        webSockets.add(webSocket_2) // Add to list
-        client.dispatcher.executorService.shutdown()
     }
 
     // Coordinates and Heading
@@ -394,10 +334,8 @@ class RoverSettingsViewModel(application: Application) : AndroidViewModel(applic
 
         }
 
-        val client = OkHttpClient()
         val webSocket = client.newWebSocket(request, listener)
-        webSockets.add(webSocket) // Add to list
-        client.dispatcher.executorService.shutdown()
+        webSockets.add(webSocket)
     }
 
     fun startBatteryWebSocket() {
@@ -420,31 +358,26 @@ class RoverSettingsViewModel(application: Application) : AndroidViewModel(applic
                 // Convert voltage to percentage
                 val batteryPercentage = convertVoltageToPercentage(voltage)
 
-                battery.value = if (batteryPercentage != null) {
-                    batteryPercentage
-                } else {
-                    0
-                }
+                battery.value = batteryPercentage
 
             } catch (e: JSONException) {
                 Log.e("WebSocket", "JSON parsing error: ${e.message}")
             }
         }
 
-        val client = OkHttpClient()
         val webSocket = client.newWebSocket(request, listener)
         webSockets.add(webSocket)
-        client.dispatcher.executorService.shutdown()
     }
 
-    private fun convertVoltageToPercentage(voltage: Double): Int? {
+    private fun convertVoltageToPercentage(voltage: Double): Int {
+        // Leo Rover 12V battery: 12.6V = full, ~10.0V = dead
         return when {
             voltage >= 12.6 -> 100
-            voltage in 11.8..12.6 -> 75
-            voltage in 11.4..11.8 -> 50
-            voltage in 10.9..11.4 -> 25
-            voltage < 10.9 -> null // Represents low battery
-            else -> null
+            voltage >= 11.8 -> 75
+            voltage >= 11.4 -> 50
+            voltage >= 10.9 -> 25
+            voltage >= 10.2 -> 10
+            else -> 5  // Critically low but still reporting
         }
     }
 
@@ -463,13 +396,11 @@ class RoverSettingsViewModel(application: Application) : AndroidViewModel(applic
     fun closeAllConnections() {
         webSockets.forEach { it.close(1000, "Closed all connections") }
         webSockets.clear()
-        client.dispatcher.executorService.shutdown()
     }
 
     override fun onCleared() {
         super.onCleared()
-        closeAllConnections() // Ensure WebSocket is closed when ViewModel is cleared
-        client.dispatcher.executorService.shutdown()
+        closeAllConnections()
     }
 
 

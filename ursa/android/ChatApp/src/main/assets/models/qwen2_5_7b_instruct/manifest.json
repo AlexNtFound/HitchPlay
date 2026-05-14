@@ -1,0 +1,44 @@
+{
+  "modelName": "qwen2_5_7b_instruct",
+  "qairtVersion": "2.42.0",
+  "manifestVersion": 1,
+  "releaseTag": "model-qwen2_5_7b_instruct-v1",
+  "files": [
+    {
+      "name": "qwen2_5_7b_instruct_part_1_of_6.bin",
+      "sizeBytes": 1090035712,
+      "sha256": "b8ab16aa4fadd27c942c17f863df105760ea5125f5acc32450ff09f98c0e8112",
+      "url": "https://github.com/AlexNtFound/HitchPlay/releases/download/model-qwen2_5_7b_instruct-v1/qwen2_5_7b_instruct_part_1_of_6.bin"
+    },
+    {
+      "name": "qwen2_5_7b_instruct_part_2_of_6.bin",
+      "sizeBytes": 707203072,
+      "sha256": "29263ff146a3cf9a8767b7a1a69d00f723daeec3113e6a86aa8dff428179f598",
+      "url": "https://github.com/AlexNtFound/HitchPlay/releases/download/model-qwen2_5_7b_instruct-v1/qwen2_5_7b_instruct_part_2_of_6.bin"
+    },
+    {
+      "name": "qwen2_5_7b_instruct_part_3_of_6.bin",
+      "sizeBytes": 707207168,
+      "sha256": "b1459f967998a3fdc643e911af287e51b529383a22d58e4abe8272d413ec7a8f",
+      "url": "https://github.com/AlexNtFound/HitchPlay/releases/download/model-qwen2_5_7b_instruct-v1/qwen2_5_7b_instruct_part_3_of_6.bin"
+    },
+    {
+      "name": "qwen2_5_7b_instruct_part_4_of_6.bin",
+      "sizeBytes": 707211264,
+      "sha256": "3274c938103eb62a040f5fff4706d0e389dc9bdd2eca7b2d8ae0509c55897f3e",
+      "url": "https://github.com/AlexNtFound/HitchPlay/releases/download/model-qwen2_5_7b_instruct-v1/qwen2_5_7b_instruct_part_4_of_6.bin"
+    },
+    {
+      "name": "qwen2_5_7b_instruct_part_5_of_6.bin",
+      "sizeBytes": 707211264,
+      "sha256": "01a93f7d0c8a0481b87adee5736c3bf093ddff6913daaf053ad42eaceecdb29e",
+      "url": "https://github.com/AlexNtFound/HitchPlay/releases/download/model-qwen2_5_7b_instruct-v1/qwen2_5_7b_instruct_part_5_of_6.bin"
+    },
+    {
+      "name": "qwen2_5_7b_instruct_part_6_of_6.bin",
+      "sizeBytes": 1019576320,
+      "sha256": "387380b4960c1bef3e1fcf372549695735850c71f73bbf3ee049a34ea3c38b9c",
+      "url": "https://github.com/AlexNtFound/HitchPlay/releases/download/model-qwen2_5_7b_instruct-v1/qwen2_5_7b_instruct_part_6_of_6.bin"
+    }
+  ]
+}

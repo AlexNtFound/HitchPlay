@@ -61,13 +61,11 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
     fun closeAllConnections() {
         webSockets.forEach { it.close(1000, "Closed all connections") }
         webSockets.clear()
-        client.dispatcher.executorService.shutdown()
     }
 
     override fun onCleared() {
         super.onCleared()
-        closeAllConnections() // Ensure WebSocket is closed when ViewModel is cleared
-        client.dispatcher.executorService.shutdown()
+        closeAllConnections()
     }
 
     fun sendPing(ipAddress: String) {

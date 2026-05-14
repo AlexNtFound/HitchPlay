@@ -22,6 +22,7 @@ import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
 import java.io.ByteArrayInputStream
+import com.chatgptlite.wanted.ui.settings.rover.RoverSettingsViewModel
 
 class VideoCamSettingsViewModel(application: Application) : AndroidViewModel(application) {
     private val client = OkHttpClient()
@@ -36,8 +37,7 @@ class VideoCamSettingsViewModel(application: Application) : AndroidViewModel(app
     private var linefollow_webSocket: WebSocket? = null
     private var navstatus_webSocket: WebSocket? = null
 
-    private val control_client = OkHttpClient()
-    private val base_client = OkHttpClient()
+    // Removed separate control_client / base_client — use shared `client` for all WebSockets
     private val WEBSOCKET_IPADDRESS = "10.0.0.1"
     private val WEBSOCKET_PORT = "9090"
 
@@ -75,10 +75,19 @@ class VideoCamSettingsViewModel(application: Application) : AndroidViewModel(app
 
         val total = connectionStatus.size
         val connected = connectionStatus.values.count { it.value }
+
+        // Push partial connection progress to Status ViewModel
+        if (connected == 1) {
+            // First topic connected — rover is reachable
+            statusViewModel?.updateConnectionState(false)
+        }
+
         if (connected == total && !allConnected.value) {
             allConnected.value = true
             toastMessage.value = "All systems ready — $total/$total topics connected"
             Log.i("WS-Connect", "ALL $total topics connected!")
+            // Notify Status ViewModel that all connections are ready
+            statusViewModel?.updateConnectionState(true)
         }
     }
 
@@ -96,11 +105,18 @@ class VideoCamSettingsViewModel(application: Application) : AndroidViewModel(app
     private var homeYaw = 0.0
     val homeIsCustom = mutableStateOf(false)
 
-    // Current robot pose (from /pose topic — same source as Status page)
+    // Current robot pose (from /pose topic — shared with Status page)
     val currentRobotX = mutableStateOf(0.0)
     val currentRobotY = mutableStateOf(0.0)
     val currentRobotYaw = mutableStateOf(0.0)
     private var pose_webSocket: WebSocket? = null
+
+    // Reference to Status ViewModel — set once from MainActivity to pipe pose data
+    private var statusViewModel: RoverSettingsViewModel? = null
+
+    fun linkStatusViewModel(vm: RoverSettingsViewModel) {
+        statusViewModel = vm
+    }
 
     // Waypoint list (recorded poses as JSON-serializable data)
     private val waypoints = mutableListOf<WaypointEntry>()
@@ -131,7 +147,7 @@ class VideoCamSettingsViewModel(application: Application) : AndroidViewModel(app
         val wsUrl = "ws://$WEBSOCKET_IPADDRESS:$WEBSOCKET_PORT"
 
         // P1: /cmd_vel — joystick driving, must work immediately
-        vel_webSocket = control_client.newWebSocket(
+        vel_webSocket = client.newWebSocket(
             Request.Builder().url(wsUrl).build(),
             RoverWebSocketListener("/cmd_vel",
                 onMessageReceived = { Log.d("WebSocket", "cmd_vel received") },
@@ -141,7 +157,7 @@ class VideoCamSettingsViewModel(application: Application) : AndroidViewModel(app
         )
 
         // P2: /e_stop — safety critical, must be ready before driving
-        estop_webSocket = OkHttpClient().newWebSocket(
+        estop_webSocket = client.newWebSocket(
             Request.Builder().url(wsUrl).build(),
             RoverWebSocketListener("/e_stop",
                 onMessageReceived = { Log.d("WebSocket", "e_stop received") },
@@ -151,7 +167,7 @@ class VideoCamSettingsViewModel(application: Application) : AndroidViewModel(app
         )
 
         // P3: /pose — robot position for Set Home + Recording
-        pose_webSocket = OkHttpClient().newWebSocket(
+        pose_webSocket = client.newWebSocket(
             Request.Builder().url(wsUrl).build(),
             RoverWebSocketListener("/pose",
                 onMessageReceived = ::handlePoseMessage,
@@ -161,7 +177,7 @@ class VideoCamSettingsViewModel(application: Application) : AndroidViewModel(app
         )
 
         // P4: /nav_status — status strip feedback
-        navstatus_webSocket = OkHttpClient().newWebSocket(
+        navstatus_webSocket = client.newWebSocket(
             Request.Builder().url(wsUrl).build(),
             RoverWebSocketListener("/nav_status",
                 onMessageReceived = ::handleNavStatus,
@@ -171,7 +187,7 @@ class VideoCamSettingsViewModel(application: Application) : AndroidViewModel(app
         )
 
         // P5: /goal_pose — navigation goals (Go Home)
-        base_webSocket = base_client.newWebSocket(
+        base_webSocket = client.newWebSocket(
             Request.Builder().url(wsUrl).build(),
             RoverWebSocketListener("/goal_pose",
                 onMessageReceived = { Log.d("WebSocket", "goal_pose received") },
@@ -181,7 +197,7 @@ class VideoCamSettingsViewModel(application: Application) : AndroidViewModel(app
         )
 
         // P6: /cancel_nav — cancel navigation
-        cancel_webSocket = OkHttpClient().newWebSocket(
+        cancel_webSocket = client.newWebSocket(
             Request.Builder().url(wsUrl).build(),
             RoverWebSocketListener("/cancel_nav",
                 onMessageReceived = { Log.d("WebSocket", "cancel_nav received") },
@@ -191,7 +207,7 @@ class VideoCamSettingsViewModel(application: Application) : AndroidViewModel(app
         )
 
         // P7: /waypoint_replay — replay recorded paths
-        waypoint_webSocket = OkHttpClient().newWebSocket(
+        waypoint_webSocket = client.newWebSocket(
             Request.Builder().url(wsUrl).build(),
             RoverWebSocketListener("/waypoint_replay",
                 onMessageReceived = { Log.d("WebSocket", "waypoint_replay received") },
@@ -201,7 +217,7 @@ class VideoCamSettingsViewModel(application: Application) : AndroidViewModel(app
         )
 
         // P8: /line_follow_cmd — line following
-        linefollow_webSocket = OkHttpClient().newWebSocket(
+        linefollow_webSocket = client.newWebSocket(
             Request.Builder().url(wsUrl).build(),
             RoverWebSocketListener("/line_follow_cmd",
                 onMessageReceived = { Log.d("WebSocket", "line_follow_cmd received") },
@@ -239,6 +255,9 @@ class VideoCamSettingsViewModel(application: Application) : AndroidViewModel(app
             currentRobotY.value = y
             currentRobotYaw.value = yaw
 
+            // Pipe pose data to Status page — eliminates duplicate /pose WebSocket
+            statusViewModel?.updatePoseFromController(x, y, qz)
+
             if (!poseReceived.value) {
                 poseReceived.value = true
                 Log.i("Pose", "First pose received! x=${"%.2f".format(x)}, y=${"%.2f".format(y)}")
@@ -267,6 +286,9 @@ class VideoCamSettingsViewModel(application: Application) : AndroidViewModel(app
 
             navStatus.value = newStatus
             navStatusDetail.value = detail
+
+            // Pipe to Status page so it reflects real rover activity
+            statusViewModel?.updateNavState(newStatus)
 
             when (newStatus) {
                 "replaying" -> {
@@ -325,8 +347,133 @@ class VideoCamSettingsViewModel(application: Application) : AndroidViewModel(app
             Log.e("RoverControl", "WebSocket not initialized. Call createWebSocket first.")
             return
         }
+        waypoints.clear()
+        waypointCount.value = 0
+        isRecording.value = true
+        recordLastTime = System.currentTimeMillis()
+        toastMessage.value = "Recording started — drive the rover"
+        Log.i("Waypoint", "Recording started")
+    }
 
-        val controlMessage = """
+    fun stopRecording() {
+        isRecording.value = false
+        waypointCount.value = waypoints.size
+        Log.i("Waypoint", "Recording stopped, ${waypoints.size} waypoints saved")
+        saveWaypoints()
+        toastMessage.value = "Recording saved: ${waypoints.size} waypoints"
+    }
+
+    fun toggleRecording() {
+        if (isRecording.value) stopRecording() else startRecording()
+    }
+
+    /** Call from joystick listener at ~10Hz to record current position */
+    fun recordWaypointTick(x: Double, y: Double, yaw: Double) {
+        if (!isRecording.value) return
+        val now = System.currentTimeMillis()
+        if (now - recordLastTime < 100) return // 10Hz throttle
+        recordLastTime = now
+        waypoints.add(WaypointEntry("nav", x, y, yaw))
+        waypointCount.value = waypoints.size
+    }
+
+    private fun saveWaypoints() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val prefs = getApplication<Application>()
+                    .getSharedPreferences("WaypointData", Context.MODE_PRIVATE)
+                // Save as list-of-lists: [["nav", x, y, yaw], ...] — matches Python format
+                val jsonArray = JSONArray()
+                for (wp in waypoints) {
+                    val item = JSONArray()
+                    item.put(wp.type)
+                    item.put(wp.x)
+                    item.put(wp.y)
+                    item.put(wp.yaw)
+                    jsonArray.put(item)
+                }
+                prefs.edit().putString("waypoints", jsonArray.toString()).apply()
+                Log.i("Waypoint", "Saved ${waypoints.size} waypoints to prefs")
+            } catch (e: Exception) {
+                Log.e("Waypoint", "Save failed: ${e.message}")
+            }
+        }
+    }
+
+    private fun loadWaypoints() {
+        try {
+            val prefs = getApplication<Application>()
+                .getSharedPreferences("WaypointData", Context.MODE_PRIVATE)
+            val json = prefs.getString("waypoints", null) ?: return
+            val array = JSONArray(json)
+            waypoints.clear()
+            for (i in 0 until array.length()) {
+                val item = array.get(i)
+                if (item is JSONArray) {
+                    // New format: ["nav", x, y, yaw]
+                    waypoints.add(
+                        WaypointEntry(
+                            item.getString(0),
+                            item.getDouble(1),
+                            item.getDouble(2),
+                            item.getDouble(3)
+                        )
+                    )
+                } else if (item is JSONObject) {
+                    // Legacy format: {"type":"nav","x":...,"y":...,"yaw":...}
+                    waypoints.add(
+                        WaypointEntry(
+                            item.getString("type"),
+                            item.getDouble("x"),
+                            item.getDouble("y"),
+                            item.getDouble("yaw")
+                        )
+                    )
+                }
+            }
+            waypointCount.value = waypoints.size
+            Log.i("Waypoint", "Loaded ${waypoints.size} waypoints from prefs")
+        } catch (e: Exception) {
+            Log.e("Waypoint", "Load failed: ${e.message}")
+        }
+    }
+
+    // ---- Waypoint Replay ----
+
+    fun toggleReplay() {
+        if (isReplaying.value) stopReplay() else startReplay()
+    }
+
+    private fun startReplay() {
+        if (waypoints.isEmpty()) {
+            loadWaypoints()
+        }
+        if (waypoints.isEmpty()) {
+            toastMessage.value = "No waypoints to replay — record a path first"
+            Log.w("Replay", "No waypoints to replay")
+            return
+        }
+
+        // Find nearest nav waypoint to current position (matches Python script)
+        val startIdx = findNearestNavIndex()
+
+        // Build waypoints as list-of-lists: [["nav", x, y, yaw], ...]
+        // This matches the Python script format that Pi5 expects
+        val wpArray = JSONArray()
+        for (wp in waypoints) {
+            val item = JSONArray()
+            item.put(wp.type)
+            item.put(wp.x)
+            item.put(wp.y)
+            item.put(wp.yaw)
+            wpArray.put(item)
+        }
+        val payload = JSONObject()
+        payload.put("cmd", "start")           // Pi5 expects "cmd", NOT "action"
+        payload.put("waypoints", wpArray)
+        payload.put("start_index", startIdx)
+
+        val msg = """
         {
             "op": "publish",
             "topic": "/cmd_vel",
@@ -343,6 +490,11 @@ class VideoCamSettingsViewModel(application: Application) : AndroidViewModel(app
         } else {
             Log.e("RoverControl", "Failed to send command.")
         }
+        """.trimIndent()
+
+        linefollow_webSocket?.send(msg)
+        isLineFollowing.value = true
+        Log.i("LineFollow", "Started line following")
     }
 
     // ---- Navigation: Home ----
@@ -771,9 +923,7 @@ class VideoCamSettingsViewModel(application: Application) : AndroidViewModel(app
             onFailed = ::onTopicFailed
         )
 
-        val client = OkHttpClient()
         client.newWebSocket(request, listener)
-        client.dispatcher.executorService.shutdown()
     }
 
     private fun updateOccupancyBitmap(dataArray: JSONArray, width: Int, height: Int) {
