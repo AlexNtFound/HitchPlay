@@ -46,16 +46,29 @@ Don't download the `.bin` files — those are fetched automatically at runtime.
 
 **3. Make `adb` available** on your PATH.
 
-*Windows* (current PowerShell session — for permanent install, add `%LOCALAPPDATA%\Android\Sdk\platform-tools` to your User PATH via System Properties or `setx`):
+*Windows* — either set the alias for the current PowerShell session only:
 
 ```powershell
 Set-Alias adb "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe"
 ```
 
-*Linux* (add to `~/.bashrc` for permanent install):
+…or add it to your User PATH permanently (idempotent — re-running won't double-add; open a new PowerShell window after running for the change to take effect):
+
+```powershell
+$adb = "$env:LOCALAPPDATA\Android\Sdk\platform-tools"
+$userPath = [Environment]::GetEnvironmentVariable("Path", "User")
+if ($userPath -notlike "*$adb*") {
+    [Environment]::SetEnvironmentVariable("Path", "$userPath;$adb", "User")
+}
+```
+
+(Avoid `setx PATH` for this — it has a 1024-character truncation bug that can permanently lose entries from your existing PATH. `[Environment]::SetEnvironmentVariable` doesn't.)
+
+*Linux* — append to `~/.bashrc` once:
 
 ```bash
-export PATH="$HOME/Android/Sdk/platform-tools:$PATH"
+echo 'export PATH="$HOME/Android/Sdk/platform-tools:$PATH"' >> ~/.bashrc
+source ~/.bashrc
 ```
 
 If you installed `adb` via `apt`, it's already on PATH and you can skip this step.
