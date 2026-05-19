@@ -473,28 +473,16 @@ class VideoCamSettingsViewModel(application: Application) : AndroidViewModel(app
         payload.put("waypoints", wpArray)
         payload.put("start_index", startIdx)
 
-        val msg = """
-        {
-            "op": "publish",
-            "topic": "/cmd_vel",
-            "msg": {
-                "linear": { "x": $x, "y": 0.0, "z": 0.0 },
-                "angular": { "x": 0.0, "y": 0.0, "z": $z_angle }
-            }
-        }
-        """.trimIndent()
-
-        val sendSuccess = vel_webSocket?.send(controlMessage)
-        if (sendSuccess == true) {
-            Log.d("RoverControl", "Command sent: linear=$x, angular=$z_angle")
-        } else {
-            Log.e("RoverControl", "Failed to send command.")
-        }
-        """.trimIndent()
-
-        linefollow_webSocket?.send(msg)
-        isLineFollowing.value = true
-        Log.i("LineFollow", "Started line following")
+        // TODO(replay): wire up the actual rosbridge publish + send for startReplay.
+        // The previous body of this function was a paste from controlRover() — it
+        // referenced undefined symbols (controlMessage, x, z_angle) and contained an
+        // unbalanced """ that broke the file's lexer. That paste has been removed.
+        // To finish: wrap `payload` in a rosbridge publish envelope (op, topic, msg)
+        // and send via the appropriate websocket (likely a /replay/start topic).
+        Log.w(
+            "Replay",
+            "startReplay() not fully implemented — payload built but not sent. Payload: $payload"
+        )
     }
 
     // ---- Navigation: Home ----
