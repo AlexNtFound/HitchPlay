@@ -883,4 +883,3 @@ data class CameraConfig(
     val port: String,
     val route: String
 )
-                                                                  
