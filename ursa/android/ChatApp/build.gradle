@@ -52,14 +52,59 @@ android {
         }
         signingConfig signingConfigs.debug
     }
+
+    // Release signing config.
+    //
+    // The keystore is NEVER committed to git — it's gitignored. For an open-source
+    // repo, committing the keystore lets anyone build a malicious APK signed as Ursa,
+    // which Android would let install as an "update" over the legitimate app.
+    //
+    // Each developer either:
+    //   (a) Generates their own keystore for personal builds (see BUILD_GUIDE.md), or
+    //   (b) Receives the team's shared keystore + password out-of-band (password
+    //       manager / encrypted channel) — only the team release manager needs this.
+    //
+    // Credentials come from android/local.properties (gitignored). If the keystore
+    // file or password is missing, release builds fall back to producing an unsigned
+    // APK rather than failing the build. Debug builds are unaffected either way.
+    signingConfigs {
+        release {
+            def kf = rootProject.file("ChatApp/ursa-release.keystore")
+            def kp = _localProps.getProperty("ursa.release.storePassword")
+            def ka = _localProps.getProperty("ursa.release.keyAlias")
+            def kpw = _localProps.getProperty("ursa.release.keyPassword")
+            if (kf.exists() && kp && ka && kpw) {
+                storeFile kf
+                storePassword kp
+                keyAlias ka
+                keyPassword kpw
+            }
+        }
+    }
+
     buildTypes {
         release {
             debuggable false
             crunchPngs true
-            minifyEnabled true
-            shrinkResources true
+            // R8 minification is disabled for now: the project uses Hilt, Compose,
+            // kotlinx-serialization, OkHttp, and JNI — all reflection-heavy. Enabling
+            // minification without curating proguard-rules.pro tends to cause runtime
+            // crashes. Re-enable when someone has time to validate the rules.
+            minifyEnabled false
+            shrinkResources false
             multiDexEnabled true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            // Apply release signing only if everything is configured. Otherwise the
+            // build proceeds with no signing config — the APK is built unsigned and
+            // can't be installed, but the build itself succeeds. Lets fresh clones
+            // run `assembleRelease` without first generating a keystore.
+            def kf = rootProject.file("ChatApp/ursa-release.keystore")
+            if (kf.exists()
+                && _localProps.getProperty("ursa.release.storePassword")
+                && _localProps.getProperty("ursa.release.keyAlias")
+                && _localProps.getProperty("ursa.release.keyPassword")) {
+                signingConfig signingConfigs.release
+            }
         }
     }
     compileOptions {

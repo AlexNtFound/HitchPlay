@@ -72,11 +72,25 @@ Ursa is an Android application that converts natural language user commands into
 ## Getting Started with the App
 
 See **[BUILD_GUIDE.md](BUILD_GUIDE.md)** for complete instructions covering:
-- Prerequisites (Gradle 8.9, QNN SDK, NDK)
-- Building the APK and deploying to device
-- Side-loading model weight files via adb
-- Swapping to a different LLM model
-- Performance tuning
+- Prerequisites (JDK 17, QNN SDK)
+- Building the APK (debug and release variants)
+- First-launch auto-download of model weights
+- Troubleshooting and performance tuning
+- How to swap to a different LLM
+- Publishing a new model release
+
+### TL;DR for collaborators
+
+If you just want to install the app on a supported phone (Snapdragon 8 Gen 2 / Gen 3 / Elite) **without setting up a build environment**, ask the team for a release APK and run:
+
+```
+adb install -r Ursa.apk
+adb shell am start -n com.quicinc.chatapp/com.chatgptlite.wanted.MainActivity
+```
+
+The app downloads the 4.8 GB of model weights automatically over Wi-Fi on first launch (~3 minutes). After that it works fully offline.
+
+If you want to build from source instead, follow [BUILD_GUIDE.md](BUILD_GUIDE.md).
 
 ## Attribution
 

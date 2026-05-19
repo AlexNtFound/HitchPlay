@@ -19,3 +19,9 @@ local.properties
 /ChatApp/src/main/assets/models/qwen2_5_7b_instruct/**
 # manifest.json is the on-disk source of truth for bin URLs/hashes; keep it tracked.
 !/ChatApp/src/main/assets/models/qwen2_5_7b_instruct/manifest.json
+
+# Signing keystores — NEVER commit. Distribute the release keystore out-of-band
+# (team password manager / encrypted channel). Per-developer debug keystores
+# stay in ~/.android/ where they belong, but defense in depth.
+*.keystore
+*.jks
