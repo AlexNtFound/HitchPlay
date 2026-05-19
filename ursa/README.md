@@ -73,24 +73,29 @@ Ursa is an Android application that converts natural language user commands into
 
 See **[BUILD_GUIDE.md](BUILD_GUIDE.md)** for complete instructions covering:
 - Prerequisites (JDK 17, QNN SDK)
-- Building the APK (debug and release variants)
-- First-launch auto-download of model weights
-- Troubleshooting and performance tuning
-- How to swap to a different LLM
-- Publishing a new model release
+- Building the APK — **debug** flavor (fast iteration, per-PC signing) and **release** flavor (stable signing for distribution)
+- First-launch auto-download of model weights (~4.8 GB over Wi-Fi)
+- Troubleshooting, performance tuning, swapping the LLM, publishing a new model release
 
-### TL;DR for collaborators
+### TL;DR — just want to use the app?
 
-If you just want to install the app on a supported phone (Snapdragon 8 Gen 2 / Gen 3 / Elite) **without setting up a build environment**, ask the team for a release APK and run:
+If you have a supported phone (Snapdragon 8 Gen 2 / Gen 3 / Elite) and **don't want to set up a build environment**, ask the team for a release APK and run:
 
 ```
 adb install -r Ursa.apk
 adb shell am start -n com.quicinc.chatapp/com.chatgptlite.wanted.MainActivity
 ```
 
-The app downloads the 4.8 GB of model weights automatically over Wi-Fi on first launch (~3 minutes). After that it works fully offline.
+The app downloads ~4.8 GB of model weights automatically over Wi-Fi on first launch (~3 minutes on fast home Wi-Fi). After that it works fully offline.
 
-If you want to build from source instead, follow [BUILD_GUIDE.md](BUILD_GUIDE.md).
+### TL;DR — want to build it yourself?
+
+1. Install **JDK 17** ([adoptium.net](https://adoptium.net/temurin/releases/?version=17)) and the **QNN SDK 2.42.0** ([qpm.qualcomm.com](https://qpm.qualcomm.com)).
+2. Point Gradle at the QNN SDK by adding `qnn.sdk.dir=...` to `android/local.properties`.
+3. Drop `tokenizer.json` and `genie-config.json` from the [model release page](https://github.com/AlexNtFound/HitchPlay/releases/tag/model-qwen2_5_7b_instruct-v1) into `android/ChatApp/src/main/assets/models/qwen2_5_7b_instruct/`.
+4. From `android/`, run **`.\build.cmd assembleDebug`** (Windows) or **`./build.sh assembleDebug`** (Linux), then `adb install -r` the resulting APK.
+
+For the release flavor (proper signing, cross-PC updates, what you'd hand to a teammate), substitute `assembleRelease` and set up the project keystore as described in BUILD_GUIDE. The build commands are identical; only the signing setup differs.
 
 ## Attribution
 

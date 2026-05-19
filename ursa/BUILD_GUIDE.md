@@ -77,12 +77,32 @@ If you installed `adb` via `apt`, it's already on PATH and you can skip this ste
 
 ## Build, install, run
 
-There are two build variants:
+There are two build variants. Both are built from the same source on the same `main` branch — debug vs release is purely *how the APK is packaged and signed*, not where the code lives.
 
-- **Debug** — for development and internal testing. Signed with an auto-generated per-PC debug keystore, larger APK, debuggable.
-- **Release** — for distribution to collaborators / demos. Signed with the project keystore (committed to the repo at `ChatApp/ursa-release.keystore`), smaller, not debuggable, **same signature across every PC** so updates work between machines.
+### Debug vs release at a glance
 
-### Debug build (default during development)
+| | Debug | Release |
+|---|---|---|
+| Command | `.\build.cmd assembleDebug` | `.\build.cmd assembleRelease` |
+| Output APK | `ChatApp\build\outputs\apk\debug\ChatApp-debug.apk` | `ChatApp\build\outputs\apk\release\ChatApp-release.apk` |
+| Signing | Auto-generated per-PC debug keystore (in `~/.android/debug.keystore`) | Project keystore from `ChatApp/ursa-release.keystore` — **not committed**, distributed via team password manager |
+| Signature consistency across PCs | **Each PC signs differently** — installing a new APK from PC B over PC A's install fails with `INSTALL_FAILED_UPDATE_INCOMPATIBLE` | **Same signature everywhere** that has the keystore — updates Just Work |
+| APK size | Larger (no minification, no resource shrinking) | Same size right now (minification is currently disabled — see note below) |
+| `debuggable=true` | Yes (debugger can attach, logs verbose) | No |
+| Build time | Slightly faster | Slightly slower |
+| When to use | Day-to-day dev, quick testing on your own phone | Sharing with collaborators, demos, anything you'd upload to a release page |
+
+> Minification note: the release build *could* shrink the APK by ~30 MB via R8 minification, but it's disabled today because this project uses reflection-heavy libraries (Hilt, Compose, kotlinx-serialization, OkHttp) that crash at runtime without curated proguard rules. The release APK still has all the real benefits (proper signing, no debuggable flag) — it just isn't smaller yet. Enabling minification is future work.
+
+### Which one should you pick right now?
+
+- **Working on the code yourself?** → Debug. Fast iteration.
+- **About to hand the APK to someone else (a labmate, a teammate, anyone with a supported phone)?** → Release. They install it once, you (or anyone else with the keystore) can ship them updates later without forcing an uninstall.
+- **Both?** → Build whichever you need right now; you can always build the other one later from the same code.
+
+---
+
+## Building a debug APK
 
 From `android/`:
 
@@ -108,17 +128,21 @@ The first run does a few one-time things automatically: downloads Gradle 8.9, pr
 
 If the build fails with a message starting `[Ursa]`, that's an intentional error — read it; it tells you exactly what to fix.
 
-### Release build (for distribution)
+> If a debug APK is already installed on the phone and you rebuilt on a *different* PC, the install will fail with `INSTALL_FAILED_UPDATE_INCOMPATIBLE` because the two PCs sign with different auto-generated debug keystores. Either uninstall first (`adb uninstall com.quicinc.chatapp` — wipes downloaded model bins) or share `~/.android/debug.keystore` between your PCs (one-time copy).
+
+---
+
+## Building a release APK
 
 A release APK is signed with a stable, team-controlled keystore. APKs built on different PCs sign with the same key, so updates install cleanly across machines without the `INSTALL_FAILED_UPDATE_INCOMPATIBLE` error.
 
-> **Security note:** the keystore is **not** committed to this repo. If it were, anyone who cloned the repo could build a malicious APK that Android would treat as a legitimate update to the real Ursa app — pushing arbitrary code to users' devices. For open-source projects this matters. The keystore lives only on the maintainers' machines and is distributed through a team password manager.
+> **Security note:** the keystore is intentionally **not** committed to this repo. If it were, anyone who cloned the public repo could build a malicious APK that Android would treat as a legitimate update to the real Ursa app — pushing arbitrary code to users' devices. The keystore lives only on the maintainers' machines and is distributed through a team password manager. `*.keystore` is in `.gitignore` as defense-in-depth.
 
-**Two paths, depending on whether you have the team's keystore:**
+Pick the path that fits your situation:
 
-#### Path A — You have the team's keystore (you're a release maintainer)
+### Path A — You're a release maintainer (you have the team's keystore)
 
-The team maintainer will give you `ursa-release.keystore` plus the three passwords. Drop the keystore into `android/ChatApp/` (it's gitignored, so it won't accidentally commit), then add the passwords to `android/local.properties`:
+A team release manager will give you `ursa-release.keystore` plus the three passwords. Drop the keystore into `android/ChatApp/` (the `.gitignore` rule means git won't accidentally pick it up), then add the passwords to `android/local.properties`:
 
 ```properties
 ursa.release.storePassword=<from-password-manager>
@@ -132,17 +156,19 @@ Then build:
 ```powershell
 .\build.cmd assembleRelease
 adb install -r ChatApp\build\outputs\apk\release\ChatApp-release.apk
+adb shell am start -n com.quicinc.chatapp/com.chatgptlite.wanted.MainActivity
 ```
 
 *Linux*:
 ```bash
 ./build.sh assembleRelease
 adb install -r ChatApp/build/outputs/apk/release/ChatApp-release.apk
+adb shell am start -n com.quicinc.chatapp/com.chatgptlite.wanted.MainActivity
 ```
 
-#### Path B — You don't have the team's keystore, but want a release-quality APK for your own testing
+### Path B — You don't have the team keystore but want a release APK for your own testing
 
-Generate a personal keystore. APKs you build will be signed with **your** key, so they won't update over a teammate's installed app — but they're real release builds you can install on your own devices:
+You can generate a personal keystore. APKs you build with it will be signed with **your** key — so they won't update over a teammate's installed app, but they'll still install and run on your own devices and are valid "release-flavor" APKs.
 
 *Windows*:
 ```powershell
@@ -153,17 +179,31 @@ keytool -genkeypair -v -storetype PKCS12 `
   -dname "CN=Ursa,OU=Ursa,O=Berkeley,L=Berkeley,ST=CA,C=US"
 ```
 
-`keytool` (ships with the JDK) will prompt you for a keystore password and key password. Pick whatever you want; you only need to remember it long enough to fill in `local.properties`:
+*Linux*:
+```bash
+keytool -genkeypair -v -storetype PKCS12 \
+  -keystore ChatApp/ursa-release.keystore \
+  -keyalg RSA -keysize 2048 -validity 10000 \
+  -alias ursa-release \
+  -dname "CN=Ursa,OU=Ursa,O=Berkeley,L=Berkeley,ST=CA,C=US"
+```
+
+`keytool` ships with the JDK so it's already on PATH if `java -version` works. It'll prompt you for a keystore password and a key password. Pick anything — write them down for the next step:
 
 ```properties
+# android/local.properties
 ursa.release.storePassword=<the-password-you-just-typed>
 ursa.release.keyAlias=ursa-release
 ursa.release.keyPassword=<the-password-you-just-typed>
 ```
 
-Then build as in Path A.
+Then build the same way as Path A.
 
-#### Initial team keystore creation (one-time, only the original maintainer)
+### What happens if the keystore isn't configured at all
+
+If `local.properties` doesn't have the credentials, or `ChatApp/ursa-release.keystore` doesn't exist, `assembleRelease` still **builds** — but produces an **unsigned** APK that can't be installed. That's by design: fresh clones can run `assembleRelease` to verify it compiles without forcing every developer to set up signing first. You'll get a non-fatal warning during the build. To actually install and distribute, follow Path A or B above.
+
+### Initial team keystore creation (one-time, only the very first maintainer)
 
 Done once, ever. The output goes into the team password manager — never the repo.
 
@@ -175,22 +215,7 @@ keytool -genkeypair -v -storetype PKCS12 `
   -dname "CN=Ursa,OU=Ursa,O=Berkeley,L=Berkeley,ST=CA,C=US"
 ```
 
-Save the resulting `ursa-release.keystore` file, the keystore password, and the key password to a team-shared password manager (1Password, Bitwarden, etc.). Distribute to release maintainers via that channel — never via Slack/email/git.
-
-#### What happens if the keystore isn't configured
-
-If `local.properties` doesn't have the credentials, or `ChatApp/ursa-release.keystore` doesn't exist, `assembleRelease` still builds — but produces an **unsigned** APK that can't be installed. That's by design: it lets fresh clones run `assembleRelease` to check it compiles, without forcing every developer to set up signing. You'll get a non-fatal warning during the build. To actually install/distribute, follow Path A or B above.
-
-### Which variant should you use?
-
-| Situation | Build |
-|---|---|
-| Day-to-day development on your own PC | Debug |
-| Quick test on a teammate's phone with their PC | Either — debug is faster to build |
-| Handing the APK to someone who isn't building from source | **Release** (no IDE/build env needed on their side) |
-| Demos, talks, lab partners, conference presentations | **Release** |
-| Uploading to a GitHub Release for download | **Release** |
-| Anything debuggable=true would expose (sensitive logs, debugger attachment) is a concern | **Release** |
+Save the resulting `ursa-release.keystore` file, the keystore password, and the key password into a team-shared password manager (1Password, Bitwarden, etc.). Distribute to release maintainers via that channel — never via Slack/email/git.
 
 ---
 
