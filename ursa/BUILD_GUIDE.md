@@ -4,6 +4,8 @@ Workflow is terminal-first. You don't need Android Studio open at all to build a
 
 Tested on **Windows 10/11** and **Ubuntu 22.04+**. Where commands differ, both are shown side-by-side.
 
+> **Just want to install the app, not build it?** Skip this guide entirely. Ask a maintainer for access to the private release repo at [AlexNtFound/HitchPlay-releases](https://github.com/AlexNtFound/HitchPlay-releases/releases) — the [latest v0.1.0 release](https://github.com/AlexNtFound/HitchPlay-releases/releases/tag/app-v0.1.0) has a ready-to-install APK. You'll only need `adb` on your PC, not JDK/QNN SDK/Gradle. See the README for the installer path.
+
 ---
 
 ## Prerequisites
@@ -36,13 +38,20 @@ qnn.sdk.dir=/opt/qcom/aistack/qairt/2.42.0.251225
 
 Forward slashes always — Java `.properties` files treat `\` as an escape character, so backslashes on Windows will silently corrupt the path. This file is gitignored.
 
-**2. Place model config files.** Download `tokenizer.json` and `genie-config.json` from the [model release page](https://github.com/AlexNtFound/HitchPlay/releases/tag/model-qwen2_5_7b_instruct-v1) and drop them into:
+**2. Place the bundled model assets.** From the [model release page](https://github.com/AlexNtFound/HitchPlay/releases/tag/model-qwen2_5_7b_instruct-v1), download these four files and drop them into the locations shown:
 
-```
-android/ChatApp/src/main/assets/models/qwen2_5_7b_instruct/
-```
+| File | Size | Destination |
+|---|---|---|
+| `tokenizer.json` | ~7 MB | `android/ChatApp/src/main/assets/models/qwen2_5_7b_instruct/` |
+| `genie-config.json` | ~2 KB | `android/ChatApp/src/main/assets/models/qwen2_5_7b_instruct/` |
+| `whisper-tiny-en.tflite` | ~41 MB | `android/ChatApp/src/main/assets/` |
+| `whisper-tiny.tflite` | ~67 MB | `android/ChatApp/src/main/assets/` |
 
-Don't download the `.bin` files — those are fetched automatically at runtime.
+The first two are the Qwen LLM's runtime config + tokenizer. The two `.tflite` files are the Whisper speech-to-text models used for voice input.
+
+**Don't download the `.bin` files** from that release — the 6 large model weight files are auto-downloaded by the app on first launch. Bundling them in the APK is impossible (Android's ZIP32 4 GB limit) and would slow every build to a crawl anyway.
+
+If you skip a Whisper file the app will still build and the chat will work over text input, but voice input will crash at runtime.
 
 **3. Make `adb` available** on your PATH.
 
@@ -323,6 +332,41 @@ On device (auto-populated):
    ```
 
 6. Build a new APK and ship. Existing devices detect the manifest change and re-download only the affected files.
+
+---
+
+## Maintainers: publishing a new app release
+
+App releases live in a **separate, private repo** ([AlexNtFound/HitchPlay-releases](https://github.com/AlexNtFound/HitchPlay-releases)) so that the Qualcomm-licensed binaries inside each APK aren't accessible to anyone who hasn't accepted Qualcomm's EULA. The public code repo stays public; only the binary deliverables are restricted.
+
+To publish a new version:
+
+1. **Build the release APK** locally (Path A from above — uses the team keystore so signatures stay consistent across versions):
+   ```powershell
+   .\build.cmd assembleRelease
+   ```
+   Output: `ChatApp\build\outputs\apk\release\ChatApp-release.apk`
+
+2. **Rename to a recognizable filename**:
+   ```powershell
+   Copy-Item ChatApp\build\outputs\apk\release\ChatApp-release.apk $env:USERPROFILE\Desktop\Ursa-v0.2.0.apk
+   ```
+
+3. **Publish the release** at https://github.com/AlexNtFound/HitchPlay-releases/releases/new:
+   - Tag: `app-v<major>.<minor>.<patch>` (e.g. `app-v0.2.0`)
+   - Title: `Ursa v0.2.0`
+   - Description: brief changelog (what changed since the previous version, any known issues)
+   - Drag-drop the renamed APK
+   - Leave "Set as a pre-release" unchecked (unless it really is alpha-quality)
+   - **Publish**, don't save as draft
+
+4. **Invite any new collaborators** to the private repo so they can see the release: Settings → Collaborators → Add people.
+
+5. **Notify the team** that v0.2.0 is out — e.g. Slack/email with the [latest release link](https://github.com/AlexNtFound/HitchPlay-releases/releases/latest).
+
+Collaborators with the previous APK installed can update cleanly: `adb install -r Ursa-v0.2.0.apk`. The same signing keystore is used across all releases, so updates install over existing installs without wiping the downloaded model bins. First-time installers go through the ~3 min model auto-download on first launch.
+
+> **Versioning:** semver. Patch (`v0.1.0` → `v0.1.1`) for bugfixes. Minor (`v0.1.0` → `v0.2.0`) for new features. Major (`v0.x.y` → `v1.0.0`) for breaking changes (e.g. a new rover protocol, dropping a SoC, swapping the LLM).
 
 ---
 

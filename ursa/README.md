@@ -77,22 +77,32 @@ See **[BUILD_GUIDE.md](BUILD_GUIDE.md)** for complete instructions covering:
 - First-launch auto-download of model weights (~4.8 GB over Wi-Fi)
 - Troubleshooting, performance tuning, swapping the LLM, publishing a new model release
 
-### TL;DR — just want to use the app?
+### Quick start — just want to use the app?
 
-If you have a supported phone (Snapdragon 8 Gen 2 / Gen 3 / Elite) and **don't want to set up a build environment**, ask the team for a release APK and run:
+If you have a supported phone (Snapdragon 8 Gen 2 / Gen 3 / Elite) and **don't want to set up a build environment**, request access from the maintainers to the **private release repo** and grab the latest APK:
 
-```
-adb install -r Ursa.apk
-adb shell am start -n com.quicinc.chatapp/com.chatgptlite.wanted.MainActivity
-```
+> **APK distribution:** [github.com/AlexNtFound/HitchPlay-releases](https://github.com/AlexNtFound/HitchPlay-releases/releases) *(private — contact a maintainer for an invite)*
 
-The app downloads ~4.8 GB of model weights automatically over Wi-Fi on first launch (~3 minutes on fast home Wi-Fi). After that it works fully offline.
+The release page is private because the APK contains Qualcomm-licensed runtime binaries that we shouldn't redistribute to people who haven't accepted Qualcomm's EULA. Once you're invited:
 
-### TL;DR — want to build it yourself?
+1. Download the latest `Ursa-vX.Y.Z.apk` from the [releases page](https://github.com/AlexNtFound/HitchPlay-releases/releases) (e.g. [v0.1.0](https://github.com/AlexNtFound/HitchPlay-releases/releases/tag/app-v0.1.0)).
+2. Install Android platform-tools on your PC if you don't already have `adb` ([download](https://developer.android.com/tools/releases/platform-tools)).
+3. On the phone: enable Developer Options + USB debugging.
+4. Run:
+   ```
+   adb install -r Ursa-v0.1.0.apk
+   adb shell am start -n com.quicinc.chatapp/com.chatgptlite.wanted.MainActivity
+   ```
+
+The app downloads ~4.8 GB of model weights automatically over Wi-Fi on first launch (~3 minutes on fast home Wi-Fi). After that it works fully offline. You don't need JDK, QNN SDK, Gradle, or any source code — `adb` is the only host-side dependency.
+
+### Quick start — want to build it yourself?
 
 1. Install **JDK 17** ([adoptium.net](https://adoptium.net/temurin/releases/?version=17)) and the **QNN SDK 2.42.0** ([qpm.qualcomm.com](https://qpm.qualcomm.com)).
 2. Point Gradle at the QNN SDK by adding `qnn.sdk.dir=...` to `android/local.properties`.
-3. Drop `tokenizer.json` and `genie-config.json` from the [model release page](https://github.com/AlexNtFound/HitchPlay/releases/tag/model-qwen2_5_7b_instruct-v1) into `android/ChatApp/src/main/assets/models/qwen2_5_7b_instruct/`.
+3. From the [model release page](https://github.com/AlexNtFound/HitchPlay/releases/tag/model-qwen2_5_7b_instruct-v1), download four files:
+   - `tokenizer.json` and `genie-config.json` → `android/ChatApp/src/main/assets/models/qwen2_5_7b_instruct/`
+   - `whisper-tiny-en.tflite` and `whisper-tiny.tflite` → `android/ChatApp/src/main/assets/`
 4. From `android/`, run **`.\build.cmd assembleDebug`** (Windows) or **`./build.sh assembleDebug`** (Linux), then `adb install -r` the resulting APK.
 
 For the release flavor (proper signing, cross-PC updates, what you'd hand to a teammate), substitute `assembleRelease` and set up the project keystore as described in BUILD_GUIDE. The build commands are identical; only the signing setup differs.
