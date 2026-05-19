@@ -4,8 +4,11 @@ Workflow is terminal-first. You don't need Android Studio open at all to build a
 
 Tested on **Windows 10/11** and **Ubuntu 22.04+**. Where commands differ, both are shown side-by-side.
 
+<<<<<<< main
 > **Just want to install the app, not build it?** Skip this guide entirely. Ask a maintainer for access to the private release repo at [AlexNtFound/HitchPlay-releases](https://github.com/AlexNtFound/HitchPlay-releases/releases) — the [latest v0.1.0 release](https://github.com/AlexNtFound/HitchPlay-releases/releases/tag/app-v0.1.0) has a ready-to-install APK. You'll only need `adb` on your PC, not JDK/QNN SDK/Gradle. See the README for the installer path.
 
+=======
+>>>>>>> main
 ---
 
 ## Prerequisites
@@ -51,8 +54,11 @@ The first two are the Qwen LLM's runtime config + tokenizer. The two `.tflite` f
 
 **Don't download the `.bin` files** from that release — the 6 large model weight files are auto-downloaded by the app on first launch. Bundling them in the APK is impossible (Android's ZIP32 4 GB limit) and would slow every build to a crawl anyway.
 
+<<<<<<< main
 If you skip a Whisper file the app will still build and the chat will work over text input, but voice input will crash at runtime.
 
+=======
+>>>>>>> main
 **3. Make `adb` available** on your PATH.
 
 *Windows* — either set the alias for the current PowerShell session only:
@@ -124,6 +130,7 @@ adb shell am start -n com.quicinc.chatapp/com.chatgptlite.wanted.MainActivity
 ```
 
 *Linux* (bash) — first time only, mark the wrappers executable: `chmod +x build.sh gradlew`:
+<<<<<<< main
 
 ```bash
 ./build.sh assembleDebug
@@ -131,6 +138,15 @@ adb install -r ChatApp/build/outputs/apk/debug/ChatApp-debug.apk
 adb shell am start -n com.quicinc.chatapp/com.chatgptlite.wanted.MainActivity
 ```
 
+=======
+
+```bash
+./build.sh assembleDebug
+adb install -r ChatApp/build/outputs/apk/debug/ChatApp-debug.apk
+adb shell am start -n com.quicinc.chatapp/com.chatgptlite.wanted.MainActivity
+```
+
+>>>>>>> main
 `build.cmd` / `build.sh` is a thin wrapper around `gradlew` that auto-detects Java — checks `JAVA_HOME`, then versioned JDK install dirs (Adoptium, Corretto, Zulu, etc.), then Android Studio's bundled JBR, then `java` on PATH. If you'd rather call Gradle directly (because you've set `JAVA_HOME` yourself), `.\gradlew.bat assembleDebug` / `./gradlew assembleDebug` still works.
 
 The first run does a few one-time things automatically: downloads Gradle 8.9, provisions JDK 17, configures CMake, copies QNN libs into the build. Expect the first build to take 5–10 minutes; subsequent builds are ~30 seconds.
