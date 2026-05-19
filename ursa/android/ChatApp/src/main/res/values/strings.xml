@@ -14,4 +14,13 @@
     <string name="provisioning_failed">Setup failed: %1$s</string>
     <string name="provisioning_retry">Retry</string>
     <string name="provisioning_cancel">Cancel</string>
+
+    <!-- Model provisioning foreground service notification -->
+    <string name="provisioning_notif_channel_name">Model setup</string>
+    <string name="provisioning_notif_channel_desc">Background downloads for the on-device LLM</string>
+    <string name="provisioning_notif_setup_title">Ursa model setup</string>
+    <string name="provisioning_notif_downloading_title">Downloading Ursa model</string>
+    <string name="provisioning_notif_downloading_text">File %1$d of %2$d — %3$d%%</string>
+    <string name="provisioning_notif_done_title">Ursa model ready</string>
+    <string name="provisioning_notif_failed_title">Ursa setup failed</string>
 </resources>

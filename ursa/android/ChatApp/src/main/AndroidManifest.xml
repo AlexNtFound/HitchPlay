@@ -10,6 +10,10 @@
     <!-- API 33+ requires runtime grant for download notifications. We don't currently
          prompt at runtime; if a user denies it the download still works, just silently. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Required to run ModelDownloadService as a foreground service so the bin
+         download survives the app being backgrounded or the activity being killed. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
 
     <application
         android:name="com.chatgptlite.wanted.helpers.BaseApplication"
@@ -58,6 +62,14 @@
             android:theme="@style/Theme.ChatApp"
             android:screenOrientation="portrait"
             tools:ignore="DiscouragedApi" />
+
+        <!-- Foreground service that drives ModelProvisioner. Survives the app being
+             backgrounded so the bin download continues in the background. Shows a
+             persistent notification with progress + cancel action. -->
+        <service
+            android:name="com.quicinc.chatapp.provisioning.ModelDownloadService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
 
 <!--                <activity-->
 <!--                    android:name="com.quicinc.chatapp.Conversation"-->

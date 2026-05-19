@@ -137,24 +137,46 @@ class ModelProvisioner(
         val finalFile = File(modelDir, file.name)
         if (finalFile.exists()) finalFile.delete()
         val tempFile = File(modelDir, "${file.name}.part")
-        if (tempFile.exists()) tempFile.delete()
 
-        Log.i(tag, "GET ${file.url} -> $tempFile (${humanSize(file.sizeBytes)})")
-        val request = Request.Builder().url(file.url).build()
-        val call = httpClient.newCall(request).also { activeCall = it }
+        // Resume support: if a .part file is present, ask the server for bytes from
+        // its current size onward and append. Saves restarting on every interruption.
+        val resumeFrom: Long = if (tempFile.exists()) tempFile.length() else 0L
+        if (resumeFrom >= file.sizeBytes) {
+            // .part somehow already at or past target — discard and start fresh.
+            Log.w(tag, "Discarding ${tempFile.name}: size $resumeFrom >= expected ${file.sizeBytes}")
+            tempFile.delete()
+        }
+        val effectiveResume = if (tempFile.exists()) tempFile.length() else 0L
+
+        val requestBuilder = Request.Builder().url(file.url)
+        if (effectiveResume > 0L) {
+            requestBuilder.header("Range", "bytes=$effectiveResume-")
+            Log.i(tag, "GET ${file.url} (resume from ${humanSize(effectiveResume)})")
+        } else {
+            Log.i(tag, "GET ${file.url} -> $tempFile (${humanSize(file.sizeBytes)})")
+        }
+        val call = httpClient.newCall(requestBuilder.build()).also { activeCall = it }
 
         try {
             call.execute().use { response ->
-                if (!response.isSuccessful) {
+                // 200 = full response (server ignored Range or none was sent).
+                // 206 = partial content (server honored Range; append from current pos).
+                val isPartial = response.code == 206
+                if (response.code != 200 && response.code != 206) {
                     throw IOException("HTTP ${response.code} ${response.message} for ${file.name}")
                 }
                 val body = response.body
                     ?: throw IOException("Empty response body for ${file.name}")
 
+                // If we asked for a range and got a full 200, the server didn't honor
+                // our Range header — discard whatever was in .part and start over.
+                val appendMode = isPartial && effectiveResume > 0L
+                if (!appendMode && tempFile.exists()) tempFile.delete()
+
                 val source = body.byteStream()
-                FileOutputStream(tempFile).use { sink ->
+                FileOutputStream(tempFile, appendMode).use { sink ->
                     val buf = ByteArray(64 * 1024) // 64 KB — sweet spot for throughput/CPU
-                    var bytesWritten = 0L
+                    var bytesWritten = if (appendMode) effectiveResume else 0L
                     var lastReportMs = 0L
                     var lastLoggedPct = -1
                     while (true) {
